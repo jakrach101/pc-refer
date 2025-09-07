@@ -128,7 +128,8 @@ input,select{border:1px solid var(--line);border-radius:10px;padding:10px 12px;f
   /* Remove any UI backgrounds/shadows that might appear */
   body *{ box-shadow:none !important; background:transparent !important }
   #printDoc{ display:block !important; position: static; width:var(--pdf-width,190mm); max-width:var(--pdf-width,190mm); margin:0 auto; background:#fff !important }
-  #printDoc *{ break-inside: avoid; background:transparent !important }
+  /* Do not force break-inside: avoid globally to prevent blank pages when content flows */
+  #printDoc *{ background:transparent !important }
   #printDoc{ page-break-after: avoid; page-break-before: avoid }
   #printDoc p:last-child, #printDoc div:last-child{ margin-bottom: 0 !important }
 }
