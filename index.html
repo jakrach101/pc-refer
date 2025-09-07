@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ใบส่งตัว Palliative Care</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>ใบส่งตัว Palliative Care</h1>
+      <p class="sub">MVP v1 — ทำงานในเบราว์เซอร์ ไม่ต้องติดตั้ง</p>
+    </header>
+    <main>
+      <section class="card">
+        <h2>สถานพยาบาล & วันที่</h2>
+        <div class="grid">
+          <label>
+            หน่วยงานต้นทาง
+            <input id="fromFacility" placeholder="เช่น คลินิกเบาใจ รพ.กาฬสินธุ์" />
+          </label>
+          <label>
+            ปลายทาง (Primary: รพ.สต. ใกล้บ้าน)
+            <input id="toFacilityPrimary" placeholder="เช่น รพ.สต.บ้าน..." />
+          </label>
+          <label>
+            ปลายทาง (Secondary: รพช.)
+            <input id="toFacilitySecondary" placeholder="เช่น รพช...." />
+          </label>
+          <label>
+            ปลายทาง (Tertiary: รพท./รพศ.)
+            <input id="toFacilityTertiary" placeholder="เช่น รพท.... / รพศ...." />
+          </label>
+          <label>
+            วันที่ส่งต่อ
+            <input id="refDate" type="date" />
+          </label>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>ข้อมูลผู้ป่วย</h2>
+        <div class="grid">
+          <label>ชื่อ-สกุล <input id="pName" /></label>
+          <label>อายุ (ปี) <input id="pAge" type="number" min="0" /></label>
+          <label>HN <input id="pHN" /></label>
+          <label>เลขบัตรประชาชน <input id="pCID" /></label>
+          <label class="span-2">ที่อยู่ <input id="pAddress" /></label>
+          <label>ผู้ดูแลหลัก <input id="careName" /></label>
+          <label>ความสัมพันธ์ <input id="careRelation" /></label>
+          <label>โทรศัพท์ผู้ดูแล <input id="careTel" /></label>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>วัตถุประสงค์การส่งต่อ</h2>
+        <div id="purposeChips" class="chips">
+          <label><input type="checkbox" value="ดูแลต่อเนื่องใกล้บ้าน"> ดูแลต่อเนื่องใกล้บ้าน</label>
+          <label><input type="checkbox" value="ดูแลประคับประคองที่บ้าน"> ดูแลประคับประคองที่บ้าน</label>
+          <label><input type="checkbox" value="ติดตามเยี่ยมบ้าน"> ติดตามเยี่ยมบ้าน</label>
+          <label><input type="checkbox" value="ดูแลระยะใกล้เสียชีวิต"> ดูแลระยะใกล้เสียชีวิต</label>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Advance Care Plan (ACP)</h2>
+        <div id="acpChips" class="chips">
+          <label><input type="checkbox" value="No CPR"> No CPR</label>
+          <label><input type="checkbox" value="No ETT"> No ETT</label>
+          <label><input type="checkbox" value="Place of death at home"> Place of death at home</label>
+          <label><input type="checkbox" value="Off ETT at home"> Off ETT at home</label>
+          <label><input type="checkbox" value="ยังไม่ตัดสินใจ"> ยังไม่ตัดสินใจ</label>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>จิตสังคม–จิตวิญญาณ</h2>
+        <div class="grid">
+          <label>ผู้รับทราบการวินิจฉัย/พยากรณ์ <input id="informedBy" /></label>
+          <label>การอยู่อาศัย
+            <select id="living">
+              <option value="">— เลือก —</option>
+              <option>อยู่ลำพัง</option>
+              <option>อยู่กับครอบครัว</option>
+              <option>มีผู้ดูแลรับจ้าง</option>
+            </select>
+          </label>
+          <label class="span-2">ความห่วงกังวล/ความต้องการ <input id="concerns" /></label>
+          <label class="span-2">Perception (ผู้ป่วย) <input id="perceptionPatient" placeholder="ตัวอย่าง: มองว่าตนเอง…" /></label>
+          <label class="span-2">Perception (ญาติ) <input id="perceptionFamily" placeholder="ตัวอย่าง: ญาติคิดว่า…" /></label>
+          <label class="span-2">Conspiracy of silence <input id="conspiracy" placeholder="ตัวอย่าง: มี/ไม่มี + รายละเอียด" /></label>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>ข้อมูลทางการแพทย์</h2>
+        <div class="grid">
+          <label>Diagnosis <input id="dx" /></label>
+          <label>PPS (%) <input id="pps" type="number" min="0" max="100" /></label>
+          <label>GFR (%) <input id="gfr" type="number" min="0" max="100" /></label>
+          <label>Hct (%) <input id="hct" type="number" min="0" max="100" /></label>
+          <label>Alb (g/dL) <input id="alb" type="number" step="0.1" /></label>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Symptoms</h2>
+        <div class="grid">
+          <label>ปวดบริเวณ <input id="painSite" /></label>
+          <label>คะแนนปวด (PS) <input id="painScore" type="number" min="0" max="10" /></label>
+          <label>Dyspnea score <input id="dyspneaScore" type="number" min="0" max="10" /></label>
+          <label>RR (ครั้ง/นาที) <input id="vsRR" type="number" min="0" /></label>
+          <label>คลื่นไส้/อาเจียน
+            <select id="nausea">
+              <option value="">—</option>
+              <option>มี</option>
+              <option>ไม่มี</option>
+            </select>
+          </label>
+          <label class="span-2">อาการอื่นๆ <input id="others" /></label>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Vital signs</h2>
+        <div class="grid">
+          <label>BP (sys) <input id="bpSys" type="number" min="0" /></label>
+          <label>BP (dia) <input id="bpDia" type="number" min="0" /></label>
+          <label>HR (ครั้ง/นาที) <input id="hr" type="number" min="0" /></label>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>แผนยา / อุปกรณ์</h2>
+        <div class="row">
+          <label class="muted">Type
+            <select id="orderType">
+              <option value="po">PO/SL</option>
+              <option value="po_prn">PO/SL (PRN)</option>
+              <option value="inj_prn">Inject (PRN)</option>
+              <option value="inf">Infusion (IV/CSCI)</option>
+            </select>
+          </label>
+        </div>
+
+        <div id="singleOrder">
+          <div class="row">
+            <input id="drugName" class="grow" placeholder="ชื่อยา" list="formulary" />
+            <input id="dose" type="number" min="0" step="0.5" placeholder="ขนาด (เช่น 1, 2.5, 3)" />
+            <input id="freq" class="grow" placeholder="ความถี่ (ระบบจะเดาให้)" list="freqList" />
+            <input id="qty" type="number" min="0" step="1" placeholder="จำนวน (เช่น 10)" />
+            <button id="addOne" type="button">+ เพิ่ม</button>
+            <button id="clearOne" type="button">ล้าง</button>
+          </div>
+          <p class="sub">Tip: พิมพ์ชื่อยา → ใส่ตัวเลขในช่องขนาด → ระบบจะเดา frequency ให้เป็น placeholder และรายการให้เลือก</p>
+          <datalist id="formulary"></datalist>
+          <datalist id="freqList"></datalist>
+        </div>
+
+        <div id="infusionOrder" class="hidden">
+          <div class="row preset-bar">
+            <button id="presetCSCI1" type="button">Preset: Morphine (CSCI)</button>
+            <button id="presetCSCI2" type="button">Preset: Morphine + Midazolam</button>
+            <button id="presetCSCI3" type="button">Preset: Morphine + Midazolam + Hyoscine</button>
+          </div>
+          <div id="mixRows"></div>
+          <datalist id="formularyIvSc"></datalist>
+          <div class="row" id="mixBar">
+            <select id="mixRoute" title="Route"><option value="CSCI">CSCI</option><option value="IV">IV</option></select>
+            <select id="mixDevice" title="Device"></select>
+            <input id="mixDiluent" placeholder="Diluent (เช่น NSS)" title="Diluent" />
+            <input id="mixFinalVol" type="number" min="1" placeholder="Vol (mL)" title="Final volume" />
+            <input id="mixDuration" type="number" min="1" value="24" placeholder="Dur (h)" title="Duration" />
+            <span id="mixRateWrap" class="hidden"><input id="mixRate" type="number" min="0" step="0.1" placeholder="mL/h" title="Rate (mL/h)" /></span>
+            <span id="mixMmWrap"><input id="mixMmPerHr" type="number" min="0" step="0.1" placeholder="mm/h" title="Set speed (mm/h)" /></span>
+            <span id="mixDiaWrap"><input id="mixDia" type="number" min="0" step="0.1" placeholder="Ø mm" title="Syringe diameter (mm)" /></span>
+            <input id="mixSite" placeholder="Site" title="Site" />
+            <input id="mixQty" type="number" min="1" placeholder="#" title="จำนวน (bag)" />
+          </div>
+          <div class="row">
+            <button id="mixAdd" type="button">Add to Med List</button>
+          </div>
+        </div>
+
+        <p class="sub">* ระบบจะแสดงคำเตือนความปลอดภัยเมื่อมี opioid และลืมใส่ laxative</p>
+        <div id="medList"></div>
+        <div id="tddSummary" class="sub"></div>
+      </section>
+
+
+      
+
+      <details class="card">
+        <summary>Conversion: Oral Morphine → Fentanyl patch</summary>
+        <div class="grid mt-8">
+          <label>Oral Morphine (mg/24h) <input id="oralMorphine24" type="number" min="0" /></label>
+          <label>Opioid-naïve?
+            <select id="isNaiveForPatch">
+              <option>No</option>
+              <option>Yes</option>
+            </select>
+          </label>
+        </div>
+        <div class="row">
+          <button id="convSuggest" type="button">Suggest patch</button>
+        </div>
+        <div id="convResult"></div>
+      </details>
+
+      <section class="card">
+        <h2>ติดตาม (Follow-up)</h2>
+        <div class="grid">
+          <label>วันที่ <input id="fuDate" type="date" /></label>
+          <label>สถานที่ติดตาม <input id="fuSite" /></label>
+          <label>โทร <input id="fuTel" /></label>
+        </div>
+      </section>
+
+      <section class="actions">
+        <button id="copyHis" type="button">Copy HIS Note</button>
+        <button id="previewBtn" type="button">แสดงตัวอย่าง PDF</button>
+        <button id="exportPdf" type="button">Export PDF</button>
+        <button id="exportData" type="button">Export ข้อมูล (.json)</button>
+        <button id="importData" type="button">Import ข้อมูล (.json)</button>
+        <button id="openDrive" type="button">เปิดโฟลเดอร์ Drive</button>
+        <input id="importFile" type="file" accept="application/json,.json" style="display:none" />
+        <details class="sub" style="margin-left:12px">
+          <summary>Print settings</summary>
+          <div class="row" style="margin-top:6px">
+            <label>Font family
+              <select id="printFont">
+                <option>TH Sarabun New</option>
+                <option>Sarabun</option>
+                <option>Noto Sans Thai</option>
+                <option>Tahoma</option>
+                <option>Arial</option>
+                <option>System</option>
+              </select>
+            </label>
+            <label>Font size (pt)
+              <input id="printSize" type="number" min="12" max="20" step="0.5" placeholder="16" />
+            </label>
+            <label>Line height
+              <input id="printLineHeight" type="number" min="1.10" max="1.60" step="0.05" placeholder="1.35" />
+            </label>
+            <label>Fit to one page
+              <input id="fitOnePage" type="checkbox" />
+            </label>
+            <label>Word-like layout
+              <input id="printWordLike" type="checkbox" />
+            </label>
+            <label>Page width (mm)
+              <input id="printWidth" type="number" min="150" max="190" step="1" placeholder="190" />
+            </label>
+            <label>Footer: Printed on
+              <input id="printShowPrinted" type="checkbox" checked />
+            </label>
+            <label>Footer: Page number
+              <input id="printShowPgn" type="checkbox" />
+            </label>
+          </div>
+        </details>
+        <button id="clearAll" class="danger" type="button">ล้างทั้งหมด</button>
+      </section>
+
+      <section id="hisBlock" class="card">
+        <h2>HIS Note (ตัวอย่าง)</h2>
+        <pre id="hisText"></pre>
+      </section>
+
+      <section id="printDoc" class="card pdf">
+        <div class="print-header">
+          <img src="logo.png" class="logo" alt="logo" />
+          <div class="heading"><h2>ใบส่งตัวผู้ป่วย Palliative Care</h2></div>
+        </div>
+        <div class="pdf-meta">
+          <div class="kv">
+            <div class="k">หน่วยงานต้นทาง</div>
+            <div class="v"><span data-bind="fromFacility"></span></div>
+            <div class="k">ปลายทาง</div>
+            <div class="v"><ul id="pdfToList" class="ul-compact"></ul></div>
+            <div class="k">วันที่ส่งต่อ</div>
+            <div class="v"><span data-bind="refDate"></span></div>
+          </div>
+        </div>
+        <div id="printFooter"><span class="printed"></span><span class="pgn"></span></div>
+        <div class="pdf-cols">
+          <div class="col">
+            <div class="pdf-section">
+              <h3>ข้อมูลผู้ป่วย</h3>
+              <div class="kv">
+                <div class="k">ชื่อ-สกุล</div><div class="v"><span data-bind="pName"></span></div>
+                <div class="k">อายุ</div><div class="v"><span data-bind="pAge"></span> ปี</div>
+                <div class="k">HN</div><div class="v"><span data-bind="pHN"></span></div>
+                <div class="k">เลขบัตร</div><div class="v"><span data-bind="pCID"></span></div>
+                <div class="k">ที่อยู่</div><div class="v"><span data-bind="pAddress"></span></div>
+                <div class="k">ผู้ดูแลหลัก</div><div class="v"><span data-bind="careName"></span> (ความสัมพันธ์: <span data-bind="careRelation"></span>, โทร: <span data-bind="careTel"></span>)</div>
+              </div>
+            </div>
+            <div class="pdf-section">
+              <h3>วัตถุประสงค์ & ACP</h3>
+              <p>วัตถุประสงค์: <span data-bind="purposeList"></span></p>
+              <p>ACP: <span data-bind="acpList"></span></p>
+            </div>
+          </div>
+          <div class="col">
+            <div class="pdf-section">
+              <h3>จิตสังคม–จิตวิญญาณ</h3>
+              <p>ผู้รับทราบ: <span data-bind="informedBy"></span> | การอยู่อาศัย: <span data-bind="living"></span></p>
+              <p>ความต้องการ/ห่วงกังวล: <span data-bind="concerns"></span></p>
+              <p id="pdfLinePerPatient">Perception (ผู้ป่วย): <span data-bind="perceptionPatient"></span></p>
+              <p id="pdfLinePerFamily">Perception (ญาติ): <span data-bind="perceptionFamily"></span></p>
+              <p id="pdfLineConspiracy">Conspiracy of silence: <span data-bind="conspiracy"></span></p>
+            </div>
+            <div class="pdf-section">
+              <h3>ข้อมูลทางการแพทย์</h3>
+              <p id="pdfLineDx">Dx: <span data-bind="dx"></span> | PPS: <span data-bind="pps"></span>% | GFR: <span data-bind="gfr"></span>% | Hct: <span data-bind="hct"></span>% | Alb: <span data-bind="alb"></span> g/dL</p>
+              <p id="pdfLineSymptoms">อาการ: ปวดบริเวณ <span data-bind="painSite"></span> (PS <span data-bind="painScore"></span>/10); Dyspnea <span data-bind="dyspneaScore"></span>/10 (RR <span data-bind="vsRR"></span>/นาที); คลื่นไส้/อาเจียน: <span data-bind="nausea"></span>; อื่นๆ: <span data-bind="others"></span></p>
+              <p id="pdfLineVS">V/S: BP <span data-bind="bpSys"></span>/<span data-bind="bpDia"></span> mmHg; HR <span data-bind="hr"></span>/นาที</p>
+            </div>
+          </div>
+        </div>
+        <div class="pdf-section">
+          <h3>แผนยา</h3>
+          <ul id="pdfMeds"></ul>
+          <p id="pdfTdd" class="muted"></p>
+        </div>
+        <div class="pdf-section">
+          <h3>ติดตาม</h3>
+          <p><span data-bind="fuDate"></span> — <span data-bind="fuSite"></span> (โทร <span data-bind="fuTel"></span>)</p>
+          
+        </div>
+        <div class="pdf-footer">
+          <p>ผู้บันทึก: _____________________________ วันที่: ____________________</p>
+        </div>
+      </section>
+
+      <div id="snack"></div>
+    </main>
+
+    <!-- html2pdf for PDF export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-YcsIPnp8nTKpWsyQufgqKp5r9mS1ANVmX8p1c+5f5m1tGqVf9y2o8aLVYF0i9T6Yg1n9lVfX8u5z6xq1F6s5Mg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="app.js"></script>
+  </body>
+  </html>

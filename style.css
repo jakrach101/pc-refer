@@ -1,0 +1,134 @@
+/* Palliative Referral Mini App – v1.1 Styles */
+:root{
+  --bg:#f8fafc; --card:#ffffff; --ink:#0f172a; --muted:#64748b;
+  --line:#e2e8f0; --acc:#2563eb; --warn:#b45309; --ok:#166534; --danger:#b91c1c;
+  /* Default paragraph gap (used for PDF paragraphs). Overridden in wordlike mode */
+  --para-gap: 3.5mm;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;font-family:"Sarabun",system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg)}
+header{padding:20px 16px;border-bottom:1px solid var(--line);background:#fff;position:sticky;top:0;z-index:10}
+h1{margin:0 0 6px 0;font-size:22px}
+.sub{margin:0;color:var(--muted)}
+main{max-width:980px;margin:24px auto;padding:0 12px 60px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 14px;margin:14px 0}
+.card h2{margin:0 0 10px 2px;font-size:18px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.grid .span-2{grid-column:span 2}
+label{display:flex;flex-direction:column;gap:6px;font-size:14px}
+input,select{border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:14px;background:#fff}
+.chips{display:flex;flex-wrap:wrap;gap:12px}
+.chips label{flex-direction:row;align-items:center;gap:8px;background:#f1f5f9;border:1px solid var(--line);border-radius:999px;padding:6px 10px}
+.preset-bar{display:flex;gap:10px;margin-bottom:10px}
+.preset-bar button{border:1px solid var(--acc);color:#fff;background:var(--acc);padding:8px 12px;border-radius:10px;cursor:pointer}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
+.row .grow{flex:1}
+#printDoc .act, .act{display:flex;gap:6px}
+#printDoc .dose-input, .dose-input{width:160px}
+.hidden{display:none !important}
+.mt-8{margin-top:8px}
+#addMed{border:1px solid var(--ink);background:#0f172a;color:#fff;padding:10px 12px;border-radius:10px}
+.med-row{display:flex;align-items:center;justify-content:space-between;border:1px dashed var(--line);border-radius:12px;padding:8px 10px;margin:6px 0;gap:10px;background:#fbfdff}
+.med-row .pill{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:50%}
+.med-row .use{flex:1;min-width:200px}
+.small{font-size:12px;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:#fff;cursor:pointer}
+.small.danger{border-color:#fecaca;color:var(--danger);background:#fff}
+.muted{opacity:.75;color:var(--muted)}
+.actions{display:flex;flex-wrap:wrap;gap:10px;position:sticky;bottom:16px;background:rgba(248,250,252,0.75);backdrop-filter:saturate(120%) blur(6px);padding:10px;border:1px solid var(--line);border-radius:12px;margin-top:14px}
+.actions button{border:1px solid var(--line);background:#fff;padding:10px 12px;border-radius:10px;cursor:pointer}
+.actions .danger{color:#fff;background:var(--danger);border-color:var(--danger)}
+.actions .undo{background:#fff;border:1px dashed var(--acc);color:var(--acc)}
+#hisBlock pre{white-space:pre-wrap;background:#0b1220;color:#e2e8f0;border-radius:12px;padding:12px;font-size:13px;overflow:auto}
+.pdf{background:#fff}
+.pdf-header h2{margin:0 0 6mm}
+.pdf-header,.pdf-footer{border:0;padding-bottom:0;margin-bottom:6mm}
+.pdf-footer{border:0;margin-top:8mm}
+
+/* PDF typography + layout */
+#pdfArea, #printDoc{
+  font-family: var(--pdf-font-family, 'Sarabun', 'Noto Sans Thai', Tahoma, Arial, sans-serif);
+  font-size: var(--pdf-font-size, 16pt);
+  line-height: var(--pdf-line-height, 1.35);
+  color:#111;width:var(--pdf-width, 190mm);max-width:var(--pdf-width, 190mm);margin:0 auto;box-sizing:border-box;
+  padding:var(--pdf-pad-top, 6mm) var(--pdf-pad-side, 10mm) var(--pdf-pad-bottom, 10mm) var(--pdf-pad-side, 10mm)
+}
+#pdfArea h2, #printDoc h2{font-size:20pt;margin:0 0 6mm;text-align:center;font-weight:700}
+#pdfArea h3, #printDoc h3{font-size:16pt;margin:0 0 4mm;font-weight:700}
+#pdfArea p, #printDoc p{margin:0 0 var(--para-gap)}
+#pdfArea .muted, #printDoc .muted{color:#6b7280}
+#pdfArea ul, #printDoc ul{margin:0 0 0 6mm;padding:0}
+#pdfArea ul li, #printDoc ul li{margin:1mm 0;break-inside:avoid}
+#pdfArea .ul-compact, #printDoc .ul-compact{margin:0;padding-left:6mm}
+#pdfArea .pdf-meta, #printDoc .pdf-meta{margin-bottom:8mm}
+#pdfArea .pdf-section, #printDoc .pdf-section{margin-top:8mm}
+#pdfArea .kv, #printDoc .kv{display:grid;grid-template-columns:34mm 1fr;column-gap:4mm;row-gap:2mm}
+#pdfArea .kv .k, #printDoc .kv .k{font-weight:600;color:#374151}
+#pdfArea .kv .v, #printDoc .kv .v{word-break:break-word}
+#printDoc p{ widows: 2; orphans: 2 }
+#printDoc .medkv{display:grid;grid-template-columns:26mm 1fr;column-gap:4mm;row-gap:3.5mm}
+#printDoc .medkv .k{font-weight:600}
+#printDoc .medkv .v{margin:0}
+#printDoc.wordlike .medkv{ margin-left: 8mm }
+#pdfArea .sign, #printDoc .sign{
+  margin-top:10mm;display:flex;align-items:baseline;justify-content:flex-start;
+  gap:8mm;flex-wrap:nowrap;white-space:nowrap
+}
+
+/* Two-column layout for core sections */
+#pdfArea .pdf-cols, #printDoc .pdf-cols{display:grid;grid-template-columns:1fr 1fr;column-gap:8mm;align-items:start}
+#pdfArea .pdf-cols .col, #printDoc .pdf-cols .col{break-inside:avoid}
+/* Word-like option */
+#printDoc.wordlike{ --para-gap: 2mm }
+#printDoc.wordlike p{ text-align: justify; text-justify: inter-character; hyphens: auto }
+#printDoc.wordlike .kv .v{ text-indent: 0 }
+#printDoc.wordlike .pdf-section > p{ margin-left: 0; text-indent: 1.5em }
+#printDoc.wordlike p.no-indent{ margin-left: 0; text-indent: 0 }
+
+/* Page-break controls for clean output */
+#pdfArea h2,#pdfArea h3,#printDoc h2,#printDoc h3{break-after:avoid}
+#pdfArea ul li,#printDoc ul li{break-inside:avoid}
+#pdfArea .kv,#printDoc .kv{break-inside:avoid}
+/* do NOT globally avoid on paragraphs/sections to prevent blank pages */
+
+/* Remove card border for PDF area to avoid visual box and page sizing issues */
+.pdf.card{border:0 !important; box-shadow:none !important}
+
+/* Printable footer (Printed on..., Page X of Y) */
+#printFooter{ font-size: 10pt; color:#444; margin-top:6mm }
+@media print{
+  #printFooter{ position: fixed; left:10mm; right:10mm; bottom:8mm; display:flex; justify-content:space-between; align-items:center }
+  #printFooter .pgn::after{ content: counter(page) " / " counter(pages) }
+}
+
+/* Official header with logo */
+#printDoc .print-header{display:flex;align-items:center;gap:8mm;margin-bottom:6mm}
+#printDoc .print-header img.logo{width:22mm;height:auto;object-fit:contain}
+#printDoc .print-header .heading{flex:1}
+#printDoc .print-header .heading h2{margin:0;text-align:center;font-size:20pt}
+
+/* Dotted signature lines */
+#printDoc .sign .label{margin:0}
+#printDoc .sign .line{display:inline-block;border-bottom:1px dotted #3f3f46;width:var(--sig-line,50mm);height:0.9em;vertical-align:bottom}
+#printDoc .sign p{margin:0}
+#snack{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;background:#0f172a;color:#fff;padding:10px 14px;border-radius:999px;opacity:0;transition:opacity .3s;z-index:50}
+#snack.warn{background:#f59e0b;color:#111827}
+#snack.ok{background:#22c55e;color:#052e12}
+#snack.danger{background:#ef4444}
+@media (max-width:720px){
+  .grid{grid-template-columns:1fr}
+  .med-row .pill{max-width:100%}
+}
+@page { size: A4; margin: 15mm 10mm 12mm 10mm }
+@media print{
+  *{ -webkit-print-color-adjust: exact; print-color-adjust: exact }
+  html, body{ margin:0; background:#fff !important }
+  header{ display:none !important }
+  /* Hide all siblings of #printDoc inside main, but keep main itself visible */
+  main > *:not(#printDoc){ display:none !important }
+  /* Remove any UI backgrounds/shadows that might appear */
+  body *{ box-shadow:none !important; background:transparent !important }
+  #printDoc{ display:block !important; position: static; width:var(--pdf-width,190mm); max-width:var(--pdf-width,190mm); margin:0 auto; background:#fff !important }
+  #printDoc *{ break-inside: avoid; background:transparent !important }
+  #printDoc{ page-break-after: avoid; page-break-before: avoid }
+  #printDoc p:last-child, #printDoc div:last-child{ margin-bottom: 0 !important }
+}
