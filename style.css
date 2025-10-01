@@ -11,17 +11,17 @@
   --page-border: #e5e7eb;  /* light page outline */
 }
 *{box-sizing:border-box}
-html,body{margin:0;padding:0;font-family:'TH Sarabun New','Sarabun','Noto Sans Thai',Tahoma,Arial,sans-serif;color:var(--ink);background:var(--bg)}
+html,body{margin:0;padding:0;font-family:'TH Sarabun New','Sarabun','Noto Sans Thai',Tahoma,Arial,sans-serif;font-size:16px;color:var(--ink);background:var(--bg)}
 header{padding:20px 16px;border-bottom:1px solid var(--line);background:#fff;position:sticky;top:0;z-index:10}
-h1{margin:0 0 6px 0;font-size:22px}
+h1{margin:0 0 6px 0;font-size:28px}
 .sub{margin:0;color:var(--muted)}
 main{max-width:980px;margin:24px auto;padding:0 12px 60px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 14px;margin:14px 0}
-.card h2{margin:0 0 10px 2px;font-size:18px}
+.card h2{margin:0 0 10px 2px;font-size:20px}
 .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 .grid .span-2{grid-column:span 2}
-label{display:flex;flex-direction:column;gap:6px;font-size:14px}
-input,select{border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:14px;background:#fff}
+label{display:flex;flex-direction:column;gap:6px;font-size:16px}
+input,select{border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:16px;background:#fff}
 .chips{display:flex;flex-wrap:wrap;gap:12px}
 .chips label{flex-direction:row;align-items:center;gap:8px;background:#f1f5f9;border:1px solid var(--line);border-radius:999px;padding:6px 10px}
 .preset-bar{display:flex;gap:10px;margin-bottom:10px}
@@ -114,6 +114,7 @@ button.btn-primary{border:1px solid var(--acc);background:var(--acc);color:#fff;
   column-gap: 1em;
   row-gap: 0.25em; /* Reduced spacing */
   margin-bottom: 0.5em;
+  padding-left: 1.5em; /* Indent entire key-value pair to match paragraphs */
 }
 #pdfArea .kv .k, #printDoc .kv .k{
   font-weight: 600;
@@ -123,7 +124,7 @@ button.btn-primary{border:1px solid var(--acc);background:var(--acc);color:#fff;
 #pdfArea .kv .v, #printDoc .kv .v{
   word-break: break-word;
   line-height: 1.4;
-  text-indent: 0; /* No Indent in key-value pairs */
+  text-indent: 0; /* No indent in key-value pairs */
 }
 #printDoc p{ widows: 2; orphans: 2 }
 #printDoc .medkv{
@@ -156,14 +157,17 @@ button.btn-primary{border:1px solid var(--acc);background:var(--acc);color:#fff;
 #pdfArea .pdf-cols .col, #printDoc .pdf-cols .col{
   break-inside: avoid;
 }
-/* Word-like option - Tighter spacing for Word style */
+/* Word-like option - MS Word style with justify text */
 #printDoc.wordlike p{
   text-align: justify;
   text-justify: inter-character;
   hyphens: auto;
 }
-#printDoc.wordlike .kv .v{ text-indent: 0 }
-#printDoc.wordlike p.no-indent{ margin-left: 0; text-indent: 0 }
+#printDoc.wordlike p.no-indent{
+  margin-left: 0;
+  text-indent: 0;
+  text-align: left; /* Override justify for specific elements */
+}
 
 /* Page-break controls for clean output */
 #pdfArea h2,#pdfArea h3,#printDoc h2,#printDoc h3{break-after:avoid}
