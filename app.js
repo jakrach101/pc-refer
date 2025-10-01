@@ -11,6 +11,7 @@ const todayISO=()=>new Date().toISOString().slice(0,10);
 const STORAGE_KEY="palliative-referral-v1.3";
 const DRIVE_FOLDER_URL = "https://drive.google.com/drive/folders/1B2ZrpYjFTve6aypQRXjr4l5Ge2F2j0Wf?usp=share_link";
 let state={}, meds=[];
+let caregivers=[]; // array of {name, relation, tel}
 let mixRows=[]; // in-UI rows for multidrug infusion
 let mixEditIndex=null; // currently editing infusion index, or null
 
@@ -19,11 +20,10 @@ const FIELD_IDS=[
   "fromFacility","refDate",
   "toFacilityPrimary","toFacilitySecondary","toFacilityTertiary",
   "pName","pAge","pHN","pCID","pAddress",
-  "careName","careRelation","careTel",
   "informedBy","living","concerns","perceptionPatient","perceptionFamily","conspiracy",
   "dx","pps","gfr","hct","alb",
-  "painSite","painScore","dyspneaScore","nausea","others",
-  "bpSys","bpDia","hr","vsRR","rr",
+  "painSite","painScore","dyspneaScore","spo2","gcs","others",
+  "bp","hr","vsRR","rr",
   "fuDate","fuSite","fuTel"
 ];
 
@@ -97,11 +97,11 @@ function shortDrugName(name){
 }
 
 // ---------- Storage ----------
-function saveAll(){ localStorage.setItem(STORAGE_KEY, JSON.stringify({state,meds,ts:Date.now()})); }
+function saveAll(){ localStorage.setItem(STORAGE_KEY, JSON.stringify({state,meds,caregivers,ts:Date.now()})); }
 function loadAll(){
   try{
     const raw=localStorage.getItem(STORAGE_KEY); if(!raw) return false;
-    const d=JSON.parse(raw)||{}; state=d.state||{}; meds=d.meds||[];
+    const d=JSON.parse(raw)||{}; state=d.state||{}; meds=d.meds||[]; caregivers = Array.isArray(d.caregivers)? d.caregivers: [];
     return true;
   }catch{ return false; }
 }
@@ -134,6 +134,84 @@ function bindSpans(){
   updatePdfVisibility();
 }
 
+// ---------- Caregivers ----------
+function syncCarePrimaryToState(){
+  const c = caregivers && caregivers[0] ? caregivers[0] : {name:"", relation:"", tel:""};
+  state.careName = c.name || "";
+  state.careRelation = c.relation || "";
+  state.careTel = c.tel || "";
+}
+function renderCaregivers(){
+  const host = document.getElementById('caregiversList');
+  if(!host) return;
+  host.innerHTML = '';
+  caregivers.forEach((c, i)=>{
+    const row = document.createElement('div');
+    row.className = 'row cg-row';
+    row.innerHTML = `
+      <span class="cg-tag" title="คนแรกเป็นผู้ดูแลหลักเสมอ">${i===0? 'หลัก': 'รอง'}</span>
+      <input class="grow" placeholder="ชื่อผู้ดูแล" value="${c.name||''}" data-i="${i}" data-field="name" />
+      <input placeholder="ความสัมพันธ์" value="${c.relation||''}" data-i="${i}" data-field="relation" style="max-width:160px" />
+      <input placeholder="โทรศัพท์" value="${c.tel||''}" data-i="${i}" data-field="tel" style="max-width:160px" />
+      <button type="button" class="small" data-act="up" data-i="${i}">↑</button>
+      <button type="button" class="small" data-act="down" data-i="${i}">↓</button>
+      <button type="button" class="small danger" data-act="del" data-i="${i}">ลบ</button>
+    `;
+    host.appendChild(row);
+  });
+  // Empty state → show one blank row for convenience
+  if(caregivers.length===0){ caregivers=[{name:'', relation:'', tel:''}]; renderCaregivers(); return; }
+  // Wire events
+  host.querySelectorAll('input[data-field]').forEach(inp=>{
+    inp.addEventListener('input', (e)=>{
+      const i = +e.target.getAttribute('data-i');
+      const f = e.target.getAttribute('data-field');
+      if(!caregivers[i]) return;
+      caregivers[i][f] = e.target.value;
+      syncCarePrimaryToState();
+      renderPrintDoc();
+      saveAll();
+    });
+  });
+  host.querySelectorAll('button[data-act]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      const i = +btn.getAttribute('data-i');
+      const act = btn.getAttribute('data-act');
+      if(act==='del'){
+        caregivers.splice(i,1);
+      }else if(act==='up' && i>0){
+        const t = caregivers[i-1]; caregivers[i-1]=caregivers[i]; caregivers[i]=t;
+      }else if(act==='down' && i<caregivers.length-1){
+        const t = caregivers[i+1]; caregivers[i+1]=caregivers[i]; caregivers[i]=t;
+      }
+      syncCarePrimaryToState();
+      renderCaregivers();
+      renderPrintDoc();
+      saveAll();
+    });
+  });
+}
+function initCaregiversUI(){
+  const addBtn = document.getElementById('addCaregiver');
+  if(addBtn){
+    addBtn.addEventListener('click', ()=>{
+      caregivers.push({name:'', relation:'', tel:''});
+      renderCaregivers();
+      syncCarePrimaryToState();
+      renderPrintDoc();
+      saveAll();
+    });
+  }
+  // Migration: if no caregivers but legacy single fields exist → seed array
+  if((!caregivers || caregivers.length===0) && (state.careName||state.careRelation||state.careTel)){
+    caregivers = [{name: state.careName||'', relation: state.careRelation||'', tel: state.careTel||''}];
+  }
+  // Ensure array exists
+  if(!Array.isArray(caregivers)) caregivers=[];
+  renderCaregivers();
+  syncCarePrimaryToState();
+}
+
 function isEmpty(v){ return (v==null || String(v).trim()===""); }
 function updatePdfVisibility(){
   // Dx line: hide if nothing meaningful (ignore default PPS=40)
@@ -152,10 +230,12 @@ function updatePdfVisibility(){
   const painSite=(state.painSite||'').trim();
   const painScore=(state.painScore||'').trim();
   const dysp=(state.dyspneaScore||'').trim();
+  const spo2=(state.spo2||'').trim();
   const rr=(state.vsRR||state.rr||'').trim();
   const nausea=(state.nausea||'').trim();
+  const gcs=(state.gcs||'').trim();
   const others=(state.others||'').trim();
-  const showSym = !!(painSite||painScore||dysp||rr||nausea||others);
+  const showSym = !!(painSite||painScore||dysp||spo2||rr||nausea||gcs||others);
   const symEl=$("#pdfLineSymptoms"); if(symEl) symEl.style.display = showSym? '':'none';
 
   // V/S line
@@ -190,6 +270,14 @@ function updatePdfToList(){
 // ---------- State I/O ----------
 function readInputsToState(){
   FIELD_IDS.forEach(id=>{ const el=$("#"+id); if(el) state[id]=(el.value||"").trim(); });
+  // Parse BP from combined field
+  const bpRaw = (state.bp||"").trim();
+  const bpMatch = bpRaw.match(/^(\d+)\s*\/\s*(\d+)$/);
+  if(bpMatch){ state.bpSys = bpMatch[1]; state.bpDia = bpMatch[2]; }
+  else{ state.bpSys = ""; state.bpDia = ""; }
+  // Read nausea from radio buttons
+  const nauseaEl = document.querySelector('input[name="nausea"]:checked');
+  state.nausea = nauseaEl ? nauseaEl.value : "";
   // aggregate multi-destination into one line for PDF/HIS
   const items=[];
   if(state.toFacilityPrimary) items.push(`Primary: ${state.toFacilityPrimary}`);
@@ -203,11 +291,21 @@ function readInputsToState(){
   state.toFacilitiesLine = bars.join(' ');
   state.purposeList = $$("#purposeChips input:checked").map(x=>x.value).join(" • ");
   state.acpList     = $$("#acpChips input:checked").map(x=>x.value).join(" • ");
+  state.metastasisList = $$("#metastasisChips input:checked").map(x=>x.value).join(", ");
+  state.treatmentList = $$("#treatmentChips input:checked").map(x=>x.value).join(", ");
+  // Sync primary caregiver fields (for PDF/HIS)
+  syncCarePrimaryToState();
 }
 function renderStateToInputs(){
   FIELD_IDS.forEach(id=>{ const el=$("#"+id); if(el && state[id]!=null) el.value=state[id]; });
+  // Restore nausea radio selection
+  if(state.nausea){ const nauseaEl = document.querySelector(`input[name="nausea"][value="${state.nausea}"]`); if(nauseaEl) nauseaEl.checked = true; }
   $$("#purposeChips input").forEach(ch=>ch.checked=(state.purposeList||"").includes(ch.value));
   $$("#acpChips input").forEach(ch=>ch.checked=(state.acpList||"").includes(ch.value));
+  $$("#metastasisChips input").forEach(ch=>ch.checked=(state.metastasisList||"").includes(ch.value));
+  $$("#treatmentChips input").forEach(ch=>ch.checked=(state.treatmentList||"").includes(ch.value));
+  // Caregivers UI
+  renderCaregivers();
 }
 
 // ---------- Meds UI ----------
@@ -460,10 +558,15 @@ function buildPrintHTML(){
 
   const lines = [];
   const dx=get('dx'), pps=get('pps'), gfr=get('gfr'), hct=get('hct'), alb=get('alb');
-  const showDx = !!(dx || gfr || hct || alb || (pps && pps!=="40"));
-  if(showDx){ lines.push(`<p>Dx: ${e(dx||'-')} | PPS: ${e(pps||'-')}% | GFR: ${e(gfr||'-')}% | Hct: ${e(hct||'-')}% | Alb: ${e(alb||'-')} g/dL</p>`); }
-  const pain=get('painSite'), ps=get('painScore'), dy=get('dyspneaScore'), rr=(get('vsRR')||get('rr')), nau=get('nausea'), oth=get('others');
-  if(pain||ps||dy||rr||nau||oth){ lines.push(`<p>อาการ: ปวดบริเวณ ${e(pain||'-')} (PS ${e(ps||'-')}/10); Dyspnea ${e(dy||'-')}/10${rr?` (RR ${e(rr)}/min)`:''}; คลื่นไส้/อาเจียน: ${e(nau)}; อื่นๆ: ${e(oth)}</p>`); }
+  const mets=get('metastasisList'), tx=get('treatmentList');
+  const showDx = !!(dx || gfr || hct || alb || (pps && pps!=="40") || mets || tx);
+  if(showDx){
+    lines.push(`<p>Dx: ${e(dx||'-')} | PPS: ${e(pps||'-')}% | GFR: ${e(gfr||'-')} | Hct: ${e(hct||'-')}% | Alb: ${e(alb||'-')} g/dL</p>`);
+    if(mets) lines.push(`<p>Metastasis: ${e(mets)}</p>`);
+    if(tx) lines.push(`<p>การรักษาที่ผ่านมา: ${e(tx)}</p>`);
+  }
+  const pain=get('painSite'), ps=get('painScore'), dy=get('dyspneaScore'), spo2=get('spo2'), rr=(get('vsRR')||get('rr')), nau=get('nausea'), gcs=get('gcs'), oth=get('others');
+  if(pain||ps||dy||spo2||rr||nau||gcs||oth){ lines.push(`<p>อาการ: ปวดบริเวณ ${e(pain||'-')} (PS ${e(ps||'-')}/10); Dyspnea ${e(dy||'-')}/10${spo2?` (SpO2 ${e(spo2)}%)`:''}${rr?` (RR ${e(rr)}/min)`:''}; คลื่นไส้/อาเจียน: ${e(nau)}${gcs?`; GCS ${e(gcs)}`:''}; อื่นๆ: ${e(oth)}</p>`); }
   const bps=get('bpSys'), bpd=get('bpDia'), hr=get('hr');
   if(bps||bpd||hr) lines.push(`<p>V/S: BP ${e(bps||'-')}/${e(bpd||'-')} mmHg; HR ${e(hr||'-')}/min${rr?`; RR ${e(rr)}/min`:''}</p>`);
 
@@ -471,6 +574,10 @@ function buildPrintHTML(){
   const tddLine = tddSummaryText();
 
   // Single-column layout
+  // Build caregiver secondary list (if any beyond primary)
+  const others = (Array.isArray(caregivers)? caregivers.slice(1): []).filter(c=> (c.name||'').trim());
+  const othersStr = others.map(c=>`${e(c.name)} (${e(c.relation||'-')}, โทร: ${e(formatPhone(c.tel||''))})`).join('; ');
+
   return `
     <div class="print-header">
       <img src="logo.png" class="logo" alt="logo" />
@@ -492,6 +599,7 @@ function buildPrintHTML(){
         <div class="k">เลขบัตร</div><div class="v">${e(formatThaiCID(get('pCID')))}</div>
         <div class="k">ที่อยู่</div><div class="v">${e(get('pAddress'))}</div>
         <div class="k">ผู้ดูแลหลัก</div><div class="v">${e(get('careName'))} (ความสัมพันธ์: ${e(get('careRelation'))}, โทร: ${e(formatPhone(get('careTel')))})</div>
+        ${ othersStr ? `<div class="k">ผู้ดูแลรอง</div><div class="v">${othersStr}</div>` : '' }
       </div>
     </div>
     <div class="pdf-section">
@@ -526,10 +634,83 @@ function buildPrintHTML(){
 
 function renderPrintDoc(){
   const el=document.getElementById('printDoc'); if(!el) return;
+  syncCarePrimaryToState();
+
+  // Preserve page estimate div
+  const pageEstDiv = el.querySelector('#pageEstimate');
+
   el.innerHTML = buildPrintHTML();
+
+  // Re-insert page estimate at the top
+  if(pageEstDiv){
+    const firstChild = el.firstChild;
+    if(firstChild){
+      el.insertBefore(pageEstDiv, firstChild);
+    } else {
+      el.appendChild(pageEstDiv);
+    }
+  }
+
   // footer content
   const pf = document.querySelector('#printFooter .printed');
   if(pf) pf.textContent = 'Printed on ' + new Date().toLocaleString('th-TH', { dateStyle:'medium', timeStyle:'short' });
+
+  // Calculate and update page estimate
+  updatePageEstimate();
+}
+
+function updatePageEstimate(){
+  const el = document.getElementById('printDoc');
+  const estDiv = document.getElementById('pageEstimate');
+  if(!el || !estDiv) return;
+
+  // Remove existing page break line
+  const existingLine = el.querySelector('.page-break-line');
+  if(existingLine) existingLine.remove();
+
+  // Wait for render to complete
+  setTimeout(()=>{
+    const contentHeight = el.scrollHeight; // px
+    const mmPerInch = 25.4;
+    const pxPerInch = 96; // CSS px
+    const pxPerMM = pxPerInch / mmPerInch;
+    const contentHeightMM = contentHeight / pxPerMM;
+
+    // A4 = 297mm, margins top+bottom = 15+12 = 27mm
+    const printableHeightPerPage = 270; // mm
+    const estimatedPages = Math.ceil(contentHeightMM / printableHeightPerPage);
+
+    let className = 'ok';
+    let message = `📄 ประมาณการ: ${estimatedPages} หน้า`;
+
+    if(estimatedPages === 1){
+      className = 'ok';
+      message = `✓ พอดี 1 หน้า (${contentHeightMM.toFixed(0)}mm / ${printableHeightPerPage}mm)`;
+    } else if(estimatedPages === 2){
+      className = 'warn';
+      const overflow = contentHeightMM - printableHeightPerPage;
+      message = `⚠️ เกิน 2 หน้า — หน้า 2 มี ${overflow.toFixed(0)}mm (เหลือพื้นที่ ${(printableHeightPerPage - overflow).toFixed(0)}mm)`;
+    } else {
+      className = 'danger';
+      message = `⚠️ ประมาณ ${estimatedPages} หน้า (${contentHeightMM.toFixed(0)}mm) — ควรลดเนื้อหา`;
+    }
+
+    estDiv.textContent = message;
+    estDiv.className = `page-estimate ${className}`;
+
+    // Draw page break line if more than 1 page
+    if(estimatedPages > 1){
+      const pageBreakLine = document.createElement('div');
+      pageBreakLine.className = 'page-break-line';
+
+      // Position at 270mm from top (accounting for padding)
+      const pageBreakPx = printableHeightPerPage * pxPerMM;
+      const padTop = parseFloat(getComputedStyle(el).paddingTop) || 0;
+      pageBreakLine.style.top = `${pageBreakPx + padTop}px`;
+
+      el.appendChild(pageBreakLine);
+    }
+  }, 100);
 }
 
 // ---------- Multidrug (IV/CSCI) UI ----------
@@ -732,7 +913,8 @@ function initMixUI(){
   });
   // Presets
   const applyPreset = (names=[])=>{
-    const typeSel = $("#orderType"); if(typeSel){ typeSel.value='inf'; typeSel.dispatchEvent(new Event('change')); }
+    const infRadio = document.querySelector('input[name="orderType"][value="inf"]');
+    if(infRadio){ infRadio.checked = true; infRadio.dispatchEvent(new Event('change')); }
     $("#mixRoute").value='CSCI';
     refreshMixDevices();
     $("#mixDevice").value='syringe';
@@ -758,15 +940,16 @@ function initMixUI(){
   });
 }
 function initOrderTypeSwitcher(){
-  const sel = $("#orderType"); if(!sel) return;
+  const radios = $$('input[name="orderType"]'); if(!radios.length) return;
   const single = $("#singleOrder"), inf = $("#infusionOrder");
   const apply = ()=>{
-    const v = sel.value;
+    const checked = document.querySelector('input[name="orderType"]:checked');
+    const v = checked ? checked.value : 'po';
     const isInf = (v === 'inf');
     single?.classList.toggle('hidden', isInf);
     inf?.classList.toggle('hidden', !isInf);
   };
-  sel.addEventListener('change', apply);
+  radios.forEach(r => r.addEventListener('change', apply));
   apply();
 }
 function renderMeds(){
@@ -817,17 +1000,26 @@ function buildHisNote(){
   const gfr=(state.gfr||'').trim();
   const hct=(state.hct||'').trim();
   const alb=(state.alb||'').trim();
-  const showDx = !!(dx || gfr || hct || alb || (pps && pps!=="40"));
-  if(showDx) L.push(`Dx: ${dx||"-"}  PPS: ${pps||"-"}%  GFR: ${gfr||"-"}%  Hct: ${hct||"-"}%  Alb: ${alb||"-"} g/dL`);
+  const mets=(state.metastasisList||'').trim();
+  const tx=(state.treatmentList||'').trim();
+  const showDx = !!(dx || gfr || hct || alb || (pps && pps!=="40") || mets || tx);
+  if(showDx){
+    L.push(`Dx: ${dx||"-"}  PPS: ${pps||"-"}%  GFR: ${gfr||"-"}  Hct: ${hct||"-"}%  Alb: ${alb||"-"} g/dL`);
+    if(mets) L.push(`Metastasis: ${mets}`);
+    if(tx) L.push(`การรักษาที่ผ่านมา: ${tx}`);
+  }
   const painSite=(state.painSite||'').trim();
   const painScore=(state.painScore||'').trim();
   const dysp=(state.dyspneaScore||'').trim();
+  const spo2=(state.spo2||'').trim();
   const rr=(state.vsRR||state.rr||'').trim();
   const nausea=(state.nausea||'').trim();
+  const gcs=(state.gcs||'').trim();
   const others=(state.others||'').trim();
-  if( painSite||painScore||dysp||rr||nausea||others ){
-    L.push(`Symptoms: pain ${painSite||"-"} (PS ${painScore||"-"}/10); Dyspnea ${dysp||"-"}/10`);
+  if( painSite||painScore||dysp||spo2||rr||nausea||gcs||others ){
+    L.push(`Symptoms: pain ${painSite||"-"} (PS ${painScore||"-"}/10); Dyspnea ${dysp||"-"}/10${spo2?` (SpO2 ${spo2}%)`:''}`);
     if(rr) L.push(`RR ${rr}/min`);
+    if(gcs) L.push(`GCS ${gcs}`);
   }
   const bps=(state.bpSys||'').trim();
   const bpd=(state.bpDia||'').trim();
@@ -925,7 +1117,8 @@ function initOrderUI(){
     if(!freq) freq=$("#freq").placeholder||"";
     const unit=inferUnitFromName(name);
     const route=inferRouteFromName(name);
-    const mode = $("#orderType")?.value || 'po';
+    const modeEl = document.querySelector('input[name="orderType"]:checked');
+    const mode = modeEl ? modeEl.value : 'po';
     const forcedPrn = (mode==='po_prn' || mode==='inj_prn');
     const orderType = (forcedPrn || /\bPRN\b/i.test(freq))?"prn":"standing";
     const qty = qtyStr? Number(qtyStr): undefined;
@@ -995,9 +1188,13 @@ function initInputs(){
   FIELD_IDS.forEach(id=>{ const el=$("#"+id); if(!el) return;
     el.addEventListener("input",()=>{ state[id]=el.value; if(id.startsWith('toFacility')){ readInputsToState(); } renderPrintDoc(); saveAll(); });
   });
-  $$("#purposeChips input, #acpChips input").forEach(ch=>ch.addEventListener("change",()=>{
+  // Listen to nausea radio buttons
+  $$('input[name="nausea"]').forEach(radio=>radio.addEventListener("change",()=>{ readInputsToState(); renderPrintDoc(); saveAll(); }));
+  $$("#purposeChips input, #acpChips input, #metastasisChips input, #treatmentChips input").forEach(ch=>ch.addEventListener("change",()=>{
     state.purposeList=$$("#purposeChips input:checked").map(x=>x.value).join(" • ");
     state.acpList=$$("#acpChips input:checked").map(x=>x.value).join(" • ");
+    state.metastasisList=$$("#metastasisChips input:checked").map(x=>x.value).join(", ");
+    state.treatmentList=$$("#treatmentChips input:checked").map(x=>x.value).join(", ");
     renderPrintDoc(); saveAll();
   }));
   initPrintPrefsUI();
@@ -1006,6 +1203,7 @@ function initInputs(){
 // ---------- Print preferences ----------
 function applyPrintPrefs(){
   const stacks={
+    'TH SarabunPSK': "'TH SarabunPSK','TH Sarabun New','Sarabun','Noto Sans Thai',Tahoma,Arial,sans-serif",
     'TH Sarabun New': "'TH Sarabun New','TH SarabunPSK','Sarabun','Noto Sans Thai',Tahoma,Arial,sans-serif",
     'Sarabun': "'Sarabun','Noto Sans Thai',Tahoma,Arial,sans-serif",
     'Noto Sans Thai': "'Noto Sans Thai',Tahoma,Arial,sans-serif",
@@ -1013,11 +1211,11 @@ function applyPrintPrefs(){
     'Arial': "Arial,Helvetica,sans-serif",
     'System': "system-ui,-apple-system,'Segoe UI',Roboto,Arial,'Noto Sans Thai','Sarabun','TH Sarabun New',sans-serif"
   };
-  const fam = state.printFont || 'Sarabun';
+  const fam = state.printFont || 'TH SarabunPSK';
   const size = state.printSize || 16;
   const lh = state.printLineHeight || 1.35;
   const width = state.printWidth || 190; // mm
-  document.documentElement.style.setProperty('--pdf-font-family', stacks[fam]||stacks['Sarabun']);
+  document.documentElement.style.setProperty('--pdf-font-family', stacks[fam]||stacks['TH SarabunPSK']);
   document.documentElement.style.setProperty('--pdf-font-size', size + 'pt');
   document.documentElement.style.setProperty('--pdf-line-height', lh);
   document.documentElement.style.setProperty('--pdf-width', width + 'mm');
@@ -1035,7 +1233,7 @@ function initPrintPrefsUI(){
   const fontSel=$("#printFont"), sizeInp=$("#printSize"), lhInp=$("#printLineHeight");
   const wordLike=$("#printWordLike"), wInp=$("#printWidth");
   const showPrinted=$("#printShowPrinted"), showPgn=$("#printShowPgn");
-  if(fontSel){ fontSel.value = state.printFont || 'Sarabun'; fontSel.addEventListener('change',()=>{ state.printFont=fontSel.value; applyPrintPrefs(); saveAll(); }); }
+  if(fontSel){ fontSel.value = state.printFont || 'TH SarabunPSK'; fontSel.addEventListener('change',()=>{ state.printFont=fontSel.value; applyPrintPrefs(); saveAll(); }); }
   if(sizeInp){ sizeInp.value = state.printSize || 16; sizeInp.addEventListener('input',()=>{ const v=+sizeInp.value||16; state.printSize=v; applyPrintPrefs(); saveAll(); }); }
   if(lhInp){ lhInp.value = state.printLineHeight || 1.35; lhInp.addEventListener('input',()=>{ const v=+lhInp.value||1.35; state.printLineHeight=v; applyPrintPrefs(); saveAll(); }); }
   if(wordLike){ wordLike.checked = state.printWordLike!==false; wordLike.addEventListener('change',()=>{ state.printWordLike=wordLike.checked; applyPrintPrefs(); saveAll(); }); }
@@ -1048,37 +1246,25 @@ function initPrintPrefsUI(){
 function initButtons(){
   $("#copyHis")?.addEventListener("click", ()=>{ const txt=buildHisNote(); $("#hisText").textContent=txt; navigator.clipboard.writeText(txt).then(()=>snack("คัดลอก HIS Note แล้ว","ok")); });
   $("#previewBtn")?.addEventListener("click", ()=>{ readInputsToState(); renderPrintDoc(); document.getElementById('printDoc')?.scrollIntoView({behavior:'smooth',block:'center'}); snack('แสดงตัวอย่าง PDF (print layout)','info'); });
-  $("#exportPdf")?.addEventListener("click", ()=>{ 
+  $("#exportPdf")?.addEventListener("click", ()=>{
     // Print in-place using the current page (no popup)
     readInputsToState(); renderPrintDoc();
-    // Optional: fit the document to one page by scaling
+    // Apply fit-one-page class to body for consistent CSS-based scaling
     const fit = document.getElementById('fitOnePage')?.checked;
-    const docEl = document.getElementById('printDoc');
-    let prevTransform = '';
-    if(fit && docEl){
-      const probe = document.createElement('div');
-      probe.style.cssText='position:absolute; left:-9999px; top:0; width:100px; height:0; border-top:1mm solid transparent;';
-      document.body.appendChild(probe);
-      const mmPx = probe.getBoundingClientRect().height; // 1mm in px
-      document.body.removeChild(probe);
-      const pageHpx = (297 - 15 - 12) * mmPx; // A4 height minus @page top/bottom margins
-      const docHpx = docEl.scrollHeight;
-      const scale = Math.min(1, pageHpx / docHpx);
-      if(scale < 1){
-        prevTransform = docEl.style.transform || '';
-        docEl.style.transformOrigin = 'top left';
-        docEl.style.transform = `scale(${scale})`;
-      }
-      const cleanup = ()=>{ if(scale < 1){ docEl.style.transform = prevTransform; }};
-      if('onafterprint' in window){ window.addEventListener('afterprint', cleanup, { once:true }); }
-      setTimeout(cleanup, 1500);
+    if(fit){
+      document.body.classList.add('fit-one-page');
+    } else {
+      document.body.classList.remove('fit-one-page');
     }
+    const cleanup = ()=>{ document.body.classList.remove('fit-one-page'); };
+    if('onafterprint' in window){ window.addEventListener('afterprint', cleanup, { once:true }); }
+    setTimeout(cleanup, 2000);
     window.print();
   });
   // Export/Import JSON data
   $("#exportData")?.addEventListener("click", ()=>{
     readInputsToState();
-    const payload = { version:"1.0", ts:Date.now(), state, meds };
+    const payload = { version:"1.1", ts:Date.now(), state, meds, caregivers };
     const blob = new Blob([JSON.stringify(payload,null,2)], {type:'application/json'});
     const hn = (state.pHN||'').trim() || 'NOHN';
     const nm = (state.pName||'').trim() || 'NONAME';
@@ -1107,7 +1293,8 @@ function initButtons(){
         const ns = d.state||{}; const nm = Array.isArray(d.meds)? d.meds: [];
         state = {...state, ...ns};
         meds = nm;
-        renderStateToInputs(); renderMeds(); bindSpans(); saveAll();
+        caregivers = Array.isArray(d.caregivers)? d.caregivers: ( (ns.careName||ns.careRelation||ns.careTel) ? [{name:ns.careName||'', relation:ns.careRelation||'', tel:ns.careTel||''}] : (caregivers||[]) );
+        renderStateToInputs(); renderMeds(); renderCaregivers(); syncCarePrimaryToState(); bindSpans(); saveAll();
         snack('Import สำเร็จ','ok');
       }catch(err){ console.error(err); snack('Import ล้มเหลว: ไฟล์ไม่ถูกต้อง','danger'); }
     };
@@ -1249,7 +1436,7 @@ function hydrate(){
   saveAll();
 }
 window.addEventListener("DOMContentLoaded", ()=>{
-  hydrate(); initInputs(); initButtons();
+  hydrate(); initInputs(); initCaregiversUI(); initButtons();
   initOrderTypeSwitcher();
   initOrderUI();
   initMixUI();
