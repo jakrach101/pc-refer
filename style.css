@@ -3,10 +3,15 @@
   --bg:#f8fafc; --card:#ffffff; --ink:#0f172a; --muted:#64748b;
   --line:#e2e8f0; --acc:#2563eb; --warn:#b45309; --ok:#166534; --danger:#b91c1c;
   /* Default paragraph gap (used for PDF paragraphs). Overridden in wordlike mode */
-  --para-gap: 3.5mm;
+  --para-gap: 0.3em;
+  /* Preview page (A4) */
+  --page-w: 210mm; /* A4 width */
+  --page-h: 297mm; /* A4 height */
+  --workspace-bg: #e5e7eb; /* darker area outside page */
+  --page-border: #e5e7eb;  /* light page outline */
 }
 *{box-sizing:border-box}
-html,body{margin:0;padding:0;font-family:"Sarabun",system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg)}
+html,body{margin:0;padding:0;font-family:'TH Sarabun New','Sarabun','Noto Sans Thai',Tahoma,Arial,sans-serif;color:var(--ink);background:var(--bg)}
 header{padding:20px 16px;border-bottom:1px solid var(--line);background:#fff;position:sticky;top:0;z-index:10}
 h1{margin:0 0 6px 0;font-size:22px}
 .sub{margin:0;color:var(--muted)}
@@ -23,8 +28,8 @@ input,select{border:1px solid var(--line);border-radius:10px;padding:10px 12px;f
 .preset-bar button{border:1px solid var(--acc);color:#fff;background:var(--acc);padding:8px 12px;border-radius:10px;cursor:pointer}
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
 .row .grow{flex:1}
-#printDoc .act, .act{display:flex;gap:6px}
-#printDoc .dose-input, .dose-input{width:160px}
+.act{display:flex;gap:6px}
+.dose-input{width:160px}
 .hidden{display:none !important}
 .mt-8{margin-top:8px}
 #addMed{border:1px solid var(--ink);background:#0f172a;color:#fff;padding:10px 12px;border-radius:10px}
@@ -33,11 +38,14 @@ input,select{border:1px solid var(--line);border-radius:10px;padding:10px 12px;f
 .med-row .use{flex:1;min-width:200px}
 .small{font-size:12px;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:#fff;cursor:pointer}
 .small.danger{border-color:#fecaca;color:var(--danger);background:#fff}
+.hint{margin:4px 0 0;color:var(--muted);font-size:12px;opacity:.9}
+.cg-row .cg-tag{display:inline-block;font-size:12px;line-height:1;border:1px solid var(--line);background:#f1f5f9;color:#111827;padding:6px 8px;border-radius:999px}
 .muted{opacity:.75;color:var(--muted)}
 .actions{display:flex;flex-wrap:wrap;gap:10px;position:sticky;bottom:16px;background:rgba(248,250,252,0.75);backdrop-filter:saturate(120%) blur(6px);padding:10px;border:1px solid var(--line);border-radius:12px;margin-top:14px}
 .actions button{border:1px solid var(--line);background:#fff;padding:10px 12px;border-radius:10px;cursor:pointer}
 .actions .danger{color:#fff;background:var(--danger);border-color:var(--danger)}
 .actions .undo{background:#fff;border:1px dashed var(--acc);color:var(--acc)}
+button.btn-primary{border:1px solid var(--acc);background:var(--acc);color:#fff;padding:12px 20px;border-radius:10px;cursor:pointer;font-size:15px;font-weight:600}
 #hisBlock pre{white-space:pre-wrap;background:#0b1220;color:#e2e8f0;border-radius:12px;padding:12px;font-size:13px;overflow:auto}
 .pdf{background:#fff}
 .pdf-header h2{margin:0 0 6mm}
@@ -46,42 +54,115 @@ input,select{border:1px solid var(--line);border-radius:10px;padding:10px 12px;f
 
 /* PDF typography + layout */
 #pdfArea, #printDoc{
-  font-family: var(--pdf-font-family, 'Sarabun', 'Noto Sans Thai', Tahoma, Arial, sans-serif);
+  font-family: var(--pdf-font-family, 'TH Sarabun New', 'Sarabun', 'Noto Sans Thai', Tahoma, Arial, sans-serif);
   font-size: var(--pdf-font-size, 16pt);
-  line-height: var(--pdf-line-height, 1.35);
+  line-height: var(--pdf-line-height, 1.4);
   color:#111;width:var(--pdf-width, 190mm);max-width:var(--pdf-width, 190mm);margin:0 auto;box-sizing:border-box;
   padding:var(--pdf-pad-top, 6mm) var(--pdf-pad-side, 10mm) var(--pdf-pad-bottom, 10mm) var(--pdf-pad-side, 10mm)
 }
-#pdfArea h2, #printDoc h2{font-size:20pt;margin:0 0 6mm;text-align:center;font-weight:700}
-#pdfArea h3, #printDoc h3{font-size:16pt;margin:0 0 4mm;font-weight:700}
-#pdfArea p, #printDoc p{margin:0 0 var(--para-gap)}
+/* Responsive sizing based on font-size - MS Word style */
+#pdfArea h2, #printDoc h2{
+  font-size: calc(var(--pdf-font-size, 16pt) * 1.25); /* 25% larger than body */
+  margin: 0.8em 0 0.5em 0; /* Reduced spacing */
+  text-align: center; font-weight: 700;
+  line-height: 1.2; /* Tighter line-height for headings */
+}
+#pdfArea h2:first-child, #printDoc h2:first-child{
+  margin-top: 0; /* No top margin for first heading */
+}
+#pdfArea h3, #printDoc h3{
+  font-size: calc(var(--pdf-font-size, 16pt) * 1.1); /* 10% larger than body */
+  margin: 0.7em 0 0.4em 0; /* Reduced spacing */
+  font-weight: 700;
+  line-height: 1.3;
+}
+#pdfArea p, #printDoc p{
+  margin: 0 0 var(--para-gap);
+  line-height: inherit; /* Use parent line-height */
+  text-indent: 1.5em; /* First-line indent for all paragraphs */
+}
+#pdfArea p:last-child, #printDoc p:last-child{
+  margin-bottom: 0; /* No margin after last paragraph in section */
+}
 #pdfArea .muted, #printDoc .muted{color:#6b7280}
-#pdfArea ul, #printDoc ul{margin:0 0 0 6mm;padding:0}
-#pdfArea ul li, #printDoc ul li{margin:1mm 0;break-inside:avoid}
-#pdfArea .ul-compact, #printDoc .ul-compact{margin:0;padding-left:6mm}
-#pdfArea .pdf-meta, #printDoc .pdf-meta{margin-bottom:8mm}
-#pdfArea .pdf-section, #printDoc .pdf-section{margin-top:8mm}
-#pdfArea .kv, #printDoc .kv{display:grid;grid-template-columns:34mm 1fr;column-gap:4mm;row-gap:2mm}
-#pdfArea .kv .k, #printDoc .kv .k{font-weight:600;color:#374151}
-#pdfArea .kv .v, #printDoc .kv .v{word-break:break-word}
+#pdfArea ul, #printDoc ul{
+  margin: 0.3em 0 0.5em 1.5em; /* Reduced spacing */
+  padding: 0;
+  line-height: inherit;
+}
+#pdfArea ul li, #printDoc ul li{
+  margin: 0.2em 0; /* Reduced spacing */
+  break-inside: avoid;
+}
+#pdfArea .ul-compact, #printDoc .ul-compact{
+  margin: 0.2em 0 0.4em 1.5em;
+}
+#pdfArea .pdf-meta, #printDoc .pdf-meta{
+  margin-bottom: 0.8em; /* Reduced spacing */
+  padding-bottom: 0.3em;
+}
+#pdfArea .pdf-section, #printDoc .pdf-section{
+  margin-top: 0.8em; /* Reduced spacing */
+  margin-bottom: 0.5em;
+}
+#pdfArea .pdf-section:first-child, #printDoc .pdf-section:first-child{
+  margin-top: 0; /* No top margin for first section */
+}
+#pdfArea .kv, #printDoc .kv{
+  display: grid;
+  grid-template-columns: 10em 1fr; /* Use em for better responsiveness */
+  column-gap: 1em;
+  row-gap: 0.25em; /* Reduced spacing */
+  margin-bottom: 0.5em;
+}
+#pdfArea .kv .k, #printDoc .kv .k{
+  font-weight: 600;
+  color: #374151;
+  line-height: 1.4;
+}
+#pdfArea .kv .v, #printDoc .kv .v{
+  word-break: break-word;
+  line-height: 1.4;
+  text-indent: 0; /* No Indent in key-value pairs */
+}
 #printDoc p{ widows: 2; orphans: 2 }
-#printDoc .medkv{display:grid;grid-template-columns:26mm 1fr;column-gap:4mm;row-gap:3.5mm}
-#printDoc .medkv .k{font-weight:600}
-#printDoc .medkv .v{margin:0}
-#printDoc.wordlike .medkv{ margin-left: 8mm }
+#printDoc .medkv{
+  display: grid;
+  grid-template-columns: 8em 1fr; /* Slightly narrower for medicine labels */
+  column-gap: 1em;
+  row-gap: 0.3em; /* Reduced spacing */
+  margin-bottom: 0.4em;
+}
+#printDoc .medkv .k{font-weight:600; line-height: 1.4;}
+#printDoc .medkv .v{margin:0; line-height: 1.4;}
+#printDoc.wordlike .medkv{
+  margin-left: 2em; /* Indent medicine list in word-like mode */
+}
 #pdfArea .sign, #printDoc .sign{
-  margin-top:10mm;display:flex;align-items:baseline;justify-content:flex-start;
-  gap:8mm;flex-wrap:nowrap;white-space:nowrap
+  margin-top: 1em; /* Reduced spacing */
+  display: flex; align-items: baseline; justify-content: flex-start;
+  gap: 2em;
+  flex-wrap: nowrap; white-space: nowrap;
 }
 
 /* Two-column layout for core sections */
-#pdfArea .pdf-cols, #printDoc .pdf-cols{display:grid;grid-template-columns:1fr 1fr;column-gap:8mm;align-items:start}
-#pdfArea .pdf-cols .col, #printDoc .pdf-cols .col{break-inside:avoid}
-/* Word-like option */
-#printDoc.wordlike{ --para-gap: 2mm }
-#printDoc.wordlike p{ text-align: justify; text-justify: inter-character; hyphens: auto }
+#pdfArea .pdf-cols, #printDoc .pdf-cols{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 2em; /* Clear gap between columns */
+  align-items: start;
+  margin-bottom: 1em;
+}
+#pdfArea .pdf-cols .col, #printDoc .pdf-cols .col{
+  break-inside: avoid;
+}
+/* Word-like option - Tighter spacing for Word style */
+#printDoc.wordlike p{
+  text-align: justify;
+  text-justify: inter-character;
+  hyphens: auto;
+}
 #printDoc.wordlike .kv .v{ text-indent: 0 }
-#printDoc.wordlike .pdf-section > p{ margin-left: 0; text-indent: 1.5em }
 #printDoc.wordlike p.no-indent{ margin-left: 0; text-indent: 0 }
 
 /* Page-break controls for clean output */
@@ -90,26 +171,101 @@ input,select{border:1px solid var(--line);border-radius:10px;padding:10px 12px;f
 #pdfArea .kv,#printDoc .kv{break-inside:avoid}
 /* do NOT globally avoid on paragraphs/sections to prevent blank pages */
 
-/* Remove card border for PDF area to avoid visual box and page sizing issues */
-.pdf.card{border:0 !important; box-shadow:none !important}
+/* Remove card chrome for PDF area; we will draw page shell ourselves */
+.pdf.card{border:0 !important; box-shadow:none !important; padding:0 !important; background:transparent !important}
+
+/* Page estimate indicator */
+.page-estimate{
+  position:sticky;top:70px;z-index:20;background:#f59e0b;color:#111827;
+  padding:8px 12px;border-radius:8px;font-size:14px;font-weight:600;
+  text-align:center;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,0.1);
+}
+.page-estimate.ok{background:#22c55e;color:#fff}
+.page-estimate.warn{background:#f59e0b;color:#111827}
+.page-estimate.danger{background:#ef4444;color:#fff}
+
+/* On-screen print preview: draw an A4 page with equal background around it */
+#printDoc{ position:relative; margin:24px auto; background:transparent !important }
+#printDoc::before{ /* the white A4 page behind content */
+  content:""; position:absolute; z-index:-1;
+  left:50%; transform:translateX(-50%);
+  top: calc(-1 * var(--pdf-pad-top, 6mm));
+  width: var(--page-w); height: var(--page-h);
+  background:#fff; border:1px solid var(--page-border);
+  box-shadow: 0 2px 8px rgba(2, 6, 23, 0.06);
+}
+#printDoc::after{ /* darker workspace outside the page */
+  content:""; position:absolute; z-index:-2; pointer-events:none;
+  left:50%; transform:translateX(-50%);
+  top: calc(-1 * var(--pdf-pad-top, 6mm));
+  width: var(--page-w); height: var(--page-h);
+  /* gigantic spread to tint the rest of the viewport */
+  box-shadow: 0 0 0 100vmax var(--workspace-bg);
+}
+
+/* Page break buffer zone indicator */
+#printDoc .page-break-line{
+  position:absolute; left:0; right:0; height:0;
+  border-top:2px dashed #f59e0b; z-index:10; pointer-events:none;
+}
+#printDoc .page-break-line::before{
+  content:"หน้า 1 สิ้นสุดที่นี่ ▲"; position:absolute; right:10mm;
+  top:-20px; background:#f59e0b; color:#111827; padding:4px 8px;
+  border-radius:4px; font-size:11px; font-weight:600;
+  white-space:nowrap;
+}
 
 /* Printable footer (Printed on..., Page X of Y) */
-#printFooter{ font-size: 10pt; color:#444; margin-top:6mm }
+#printFooter{
+  font-size: 0.75em; /* Smaller footer text */
+  color: #666;
+  margin-top: 2em; /* Good space before footer */
+  padding-top: 1em;
+  border-top: 1px solid #e5e7eb; /* Subtle separator */
+}
 @media print{
   #printFooter{ position: fixed; left:10mm; right:10mm; bottom:8mm; display:flex; justify-content:space-between; align-items:center }
   #printFooter .pgn::after{ content: counter(page) " / " counter(pages) }
 }
 
 /* Official header with logo */
-#printDoc .print-header{display:flex;align-items:center;gap:8mm;margin-bottom:6mm}
-#printDoc .print-header img.logo{width:22mm;height:auto;object-fit:contain}
+#printDoc .print-header{
+  display: flex;
+  align-items: center;
+  gap: 1.5em;
+  margin-bottom: 1.5em; /* Good space after header */
+  padding-bottom: 1em;
+  border-bottom: 2px solid #e5e7eb; /* Subtle separator under header */
+}
+#printDoc .print-header img.logo{
+  width: 3em; /* Scale with font size */
+  height: auto;
+  object-fit: contain;
+}
 #printDoc .print-header .heading{flex:1}
-#printDoc .print-header .heading h2{margin:0;text-align:center;font-size:20pt}
+#printDoc .print-header .heading h2{
+  margin:0;
+  text-align:center;
+  color: #1e293b; /* Slightly darker for prominence */
+}
 
 /* Dotted signature lines */
-#printDoc .sign .label{margin:0}
-#printDoc .sign .line{display:inline-block;border-bottom:1px dotted #3f3f46;width:var(--sig-line,50mm);height:0.9em;vertical-align:bottom}
-#printDoc .sign p{margin:0}
+#printDoc .sign .label{margin:0; line-height: 1.4;}
+#printDoc .sign .line{
+  display: inline-block;
+  border-bottom: 1px dotted #3f3f46;
+  width: 12em; /* Signature line width scales with font */
+  height: 1em;
+  vertical-align: bottom;
+}
+#printDoc .sign p{margin:0; line-height: 1.4;}
+
+/* PDF footer section */
+#printDoc .pdf-footer{
+  margin-top: 2em;
+  padding-top: 1em;
+  border-top: 1px solid #e5e7eb;
+}
 #snack{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;background:#0f172a;color:#fff;padding:10px 14px;border-radius:999px;opacity:0;transition:opacity .3s;z-index:50}
 #snack.warn{background:#f59e0b;color:#111827}
 #snack.ok{background:#22c55e;color:#052e12}
@@ -123,13 +279,31 @@ input,select{border:1px solid var(--line);border-radius:10px;padding:10px 12px;f
   *{ -webkit-print-color-adjust: exact; print-color-adjust: exact }
   html, body{ margin:0; background:#fff !important }
   header{ display:none !important }
+  .page-estimate{ display:none !important }
+  .page-break-line{ display:none !important }
   /* Hide all siblings of #printDoc inside main, but keep main itself visible */
   main > *:not(#printDoc){ display:none !important }
   /* Remove any UI backgrounds/shadows that might appear */
   body *{ box-shadow:none !important; background:transparent !important }
   #printDoc{ display:block !important; position: static; width:var(--pdf-width,190mm); max-width:var(--pdf-width,190mm); margin:0 auto; background:#fff !important }
+  /* Ensure pseudo-elements don't affect paper output */
+  #printDoc::before, #printDoc::after{ display:none !important }
   /* Do not force break-inside: avoid globally to prevent blank pages when content flows */
   #printDoc *{ background:transparent !important }
   #printDoc{ page-break-after: avoid; page-break-before: avoid }
   #printDoc p:last-child, #printDoc div:last-child{ margin-bottom: 0 !important }
+
+  /* Fit to one page: reduce font size and spacing */
+  body.fit-one-page #printDoc{
+    font-size: 14pt !important;
+    line-height: 1.2 !important;
+    --para-gap: 2mm !important;
+  }
+  body.fit-one-page #printDoc h2{ font-size: 16pt !important; margin-bottom: 3mm !important; }
+  body.fit-one-page #printDoc h3{ font-size: 14pt !important; margin-bottom: 2mm !important; }
+  body.fit-one-page #printDoc .pdf-meta{ margin-bottom: 4mm !important; }
+  body.fit-one-page #printDoc .pdf-section{ margin-top: 4mm !important; }
+  body.fit-one-page #printDoc .kv{ row-gap: 1mm !important; }
+  body.fit-one-page #printDoc .sign{ margin-top: 6mm !important; }
+  body.fit-one-page #printDoc .pdf-cols{ column-gap: 6mm !important; }
 }
