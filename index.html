@@ -168,17 +168,23 @@
               </div>
 
               <div class="med-field">
-                <label class="med-label">จำนวนต่อครั้ง</label>
+                <label class="med-label">
+                  ขนาดยา (dose)
+                  <span id="doseUnitLabel" class="unit-badge"></span>
+                </label>
                 <input id="dose" type="number" min="0" step="0.5" placeholder="1" />
               </div>
 
               <div class="med-field med-field-grow">
-                <label class="med-label">ความถี่</label>
+                <label class="med-label">วิธีใช้</label>
                 <input id="freq" placeholder="q12h, bid, tid" list="freqList" />
               </div>
 
               <div class="med-field med-field-qty">
-                <label class="med-label">จำนวน</label>
+                <label class="med-label">
+                  จำนวน
+                  <span id="qtyPackLabel" class="pack-info"></span>
+                </label>
                 <div class="qty-input-wrapper">
                   <input id="qty" type="number" min="0" step="1" placeholder="จำนวน" required />
                   <span class="qty-calc-icon" id="showCalc" title="คำนวณจากจำนวนวัน">🧮</span>
@@ -199,11 +205,11 @@
               </div>
               <div class="calc-panel-body">
                 <div class="calc-row">
-                  <span class="calc-info">จำนวนต่อครั้ง: <strong id="calcDoseDisplay">-</strong></span>
+                  <input id="calcDoseInput" type="number" min="0" step="0.5" placeholder="Dose" class="calc-input-small" />
                   <span class="calc-separator">×</span>
-                  <span class="calc-info">ความถี่: <strong id="calcFreqDisplay">-</strong></span>
+                  <input id="calcFreqInput" placeholder="q12h, tid" class="calc-input-medium" />
                   <span class="calc-separator">×</span>
-                  <input id="medDuration" type="number" min="1" max="365" placeholder="จำนวนวัน" class="calc-days-input" />
+                  <input id="medDuration" type="number" min="1" max="365" placeholder="จำนวนวัน" class="calc-input-small" />
                   <span class="calc-info">วัน</span>
                   <button id="calcMedQty" type="button" class="btn-calc">คำนวณ</button>
                 </div>
@@ -244,7 +250,6 @@
           </div>
         </div>
 
-        <p class="hint">* ระบบจะแสดงคำเตือนความปลอดภัยเมื่อมี opioid และลืมใส่ laxative</p>
         <div id="medList"></div>
         <div id="tddSummary" class="sub"></div>
       </section>
@@ -286,45 +291,102 @@
         <button id="exportExcel" type="button">Export รายการยา (Excel)</button>
         <button id="importData" type="button">Import ข้อมูล (.json)</button>
         <button id="openDrive" type="button">เปิดโฟลเดอร์ Drive</button>
+        <button id="togglePrintSettings" type="button">⚙️ ตั้งค่าการพิมพ์</button>
         <input id="importFile" type="file" accept="application/json,.json" style="display:none" />
-        <details class="sub" style="margin-left:12px">
-          <summary>Print settings</summary>
-          <div class="row" style="margin-top:6px">
-            <label>Font family
-              <select id="printFont">
-                <option>TH SarabunPSK</option>
-                <option>TH Sarabun New</option>
-                <option>Sarabun</option>
-                <option>Noto Sans Thai</option>
-                <option>Tahoma</option>
-                <option>Arial</option>
-                <option>System</option>
-              </select>
-            </label>
-            <label>Font size (pt)
-              <input id="printSize" type="number" min="8" max="20" step="0.5" placeholder="16" />
-            </label>
-            <label>Line height
-              <input id="printLineHeight" type="number" min="1.10" max="1.60" step="0.05" placeholder="1.35" />
-            </label>
-            <label>Fit to one page
-              <input id="fitOnePage" type="checkbox" />
-            </label>
-            <label>Word-like layout
-              <input id="printWordLike" type="checkbox" />
-            </label>
-            <label>Page width (mm)
-              <input id="printWidth" type="number" min="150" max="190" step="1" placeholder="190" />
-            </label>
-            <label>Footer: Printed on
-              <input id="printShowPrinted" type="checkbox" checked />
-            </label>
-            <label>Footer: Page number
-              <input id="printShowPgn" type="checkbox" />
-            </label>
-          </div>
-        </details>
         <button id="clearAll" class="danger" type="button">ล้างทั้งหมด</button>
+      </section>
+
+      <!-- Print Settings Panel -->
+      <section id="printSettingsPanel" class="card print-settings-panel hidden">
+        <div class="print-settings-header">
+          <h2>⚙️ ตั้งค่าการพิมพ์</h2>
+          <button id="closePrintSettings" class="settings-close">✕</button>
+        </div>
+
+        <div class="print-settings-grid">
+          <!-- Typography Settings -->
+          <div class="settings-group">
+            <h3 class="settings-group-title">📝 ฟอนต์และขนาด</h3>
+            <div class="settings-row">
+              <label class="settings-label">
+                <span>Font Family</span>
+                <select id="printFont" class="settings-input">
+                  <option>TH SarabunPSK</option>
+                  <option>TH Sarabun New</option>
+                  <option>Sarabun</option>
+                  <option>Noto Sans Thai</option>
+                  <option>Tahoma</option>
+                  <option>Arial</option>
+                  <option>System</option>
+                </select>
+              </label>
+
+              <label class="settings-label">
+                <span>Font Size <span class="settings-value" id="printSizeValue">16pt</span></span>
+                <input id="printSize" type="range" min="4" max="20" step="0.5" value="16" class="settings-slider" />
+              </label>
+
+              <label class="settings-label">
+                <span>Line Height <span class="settings-value" id="printLineHeightValue">1.35</span></span>
+                <input id="printLineHeight" type="range" min="1.10" max="1.60" step="0.05" value="1.35" class="settings-slider" />
+              </label>
+            </div>
+          </div>
+
+          <!-- Layout Settings -->
+          <div class="settings-group">
+            <h3 class="settings-group-title">📄 เลย์เอาต์</h3>
+            <div class="settings-row">
+              <label class="settings-label">
+                <span>Page Width <span class="settings-value" id="printWidthValue">190mm</span></span>
+                <input id="printWidth" type="range" min="150" max="200" step="5" value="190" class="settings-slider" />
+              </label>
+
+              <label class="settings-toggle">
+                <input id="fitOnePage" type="checkbox" />
+                <span class="toggle-label">
+                  <strong>Fit to 1 Page</strong>
+                  <small>ลดขนาดให้พอดี 1 หน้า</small>
+                </span>
+              </label>
+
+              <label class="settings-toggle">
+                <input id="printWordLike" type="checkbox" checked />
+                <span class="toggle-label">
+                  <strong>Word-like Layout</strong>
+                  <small>เว้นวรรคและจัดข้อความแบบ MS Word</small>
+                </span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Footer Settings -->
+          <div class="settings-group">
+            <h3 class="settings-group-title">📌 ส่วนท้าย</h3>
+            <div class="settings-row">
+              <label class="settings-toggle">
+                <input id="printShowPrinted" type="checkbox" checked />
+                <span class="toggle-label">
+                  <strong>แสดงวันที่พิมพ์</strong>
+                  <small>Printed on...</small>
+                </span>
+              </label>
+
+              <label class="settings-toggle">
+                <input id="printShowPgn" type="checkbox" />
+                <span class="toggle-label">
+                  <strong>แสดงเลขหน้า</strong>
+                  <small>Page X of Y</small>
+                </span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="print-settings-footer">
+          <button id="resetPrintSettings" type="button" class="btn-reset">↺ รีเซ็ตค่าเริ่มต้น</button>
+          <button id="applyPrintSettings" type="button" class="btn-primary">✓ ใช้การตั้งค่า</button>
+        </div>
       </section>
 
       <section id="hisBlock" class="card">
