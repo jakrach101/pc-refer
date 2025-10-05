@@ -28,6 +28,31 @@ const escapeHTML = (str) => {
     .replace(/'/g, '&#39;');
 };
 
+// Dynamic fit to one page function
+function applyFitToOnePage() {
+  const printDoc = document.getElementById('printDoc');
+  if (!printDoc) return;
+
+  if (state.fitOnePage) {
+    // A4 height in pixels (297mm at 96dpi ≈ 1122px, minus margins)
+    const a4Height = 1050; // Usable height after margins
+
+    // Get current content height
+    const contentHeight = printDoc.scrollHeight;
+
+    // Calculate scale factor
+    const scale = Math.min(1, a4Height / contentHeight);
+
+    // Apply scale
+    printDoc.style.transform = `scale(${scale})`;
+    printDoc.style.marginBottom = `${(contentHeight * scale - contentHeight)}px`;
+  } else {
+    // Reset transform
+    printDoc.style.transform = '';
+    printDoc.style.marginBottom = '';
+  }
+}
+
 // Input Validation for Medical Fields - Prevents data entry errors
 const VALIDATORS = {
   pAge: (v) => {
@@ -124,23 +149,27 @@ const DRUGS=[
   {name:"Lactulose", form:"syrup", strength:"", defaultUse:"15–30 mL oral q12h PRN"},
 ];
 
-// A lightweight formulary for single-line order UI (name + unit + route)
+// A lightweight formulary for single-line order UI (name + unit + route + packSize)
+// packSize: จำนวนต่อแพ็ค/ขวด/กล่อง สำหรับคำนวณจำนวนแพ็คอัตโนมัติ (null = ไม่ต้องคำนวณ)
+// packUnit: หน่วยของแพ็ค (เช่น "ขวด", "กล่อง", "แผง")
+// types: ระบุประเภทที่ยาใช้ได้ ["po", "po_prn", "inj_prn", "inf"]
 const FORMULARY=[
-  {name:"MST 10 mg/tab", unit:"tab", route:"PO"},
-  {name:"MST 30 mg/tab", unit:"tab", route:"PO"},
-  {name:"Kapanol 20 mg", unit:"cap", route:"PO"},
-  {name:"Methadone", unit:"mg", route:"PO"},
-  {name:"Morphine IR 10 mg/tab", unit:"tab", route:"SL"},
-  {name:"Morphine injection 10 mg/mL (1 amp)", unit:"mg", route:"IV/SC"},
-  {name:"Fentanyl patch 25 mcg/hr", unit:"patch", route:"patch"},
-  {name:"Fentanyl injection 100 mcg/2 mL (1 amp)", unit:"mcg", route:"IV"},
-  {name:"Midazolam", unit:"mg", route:"SC"},
-  {name:"Haloperidol", unit:"mg", route:"SC"},
-  {name:"Senna", unit:"tab", route:"PO"},
-  {name:"Lactulose", unit:"mL", route:"PO"},
-  {name:"Atropine 1% eye drops", unit:"หยด", route:"SL"},
-  {name:"Lorazepam 1 mg", unit:"mg", route:"SL"},
-  {name:"Hyoscine butylbromide (Buscopan) injection 20 mg/mL (1 amp)", unit:"mg", route:"IV/SC"},
+  {name:"MST 10 mg/tab", unit:"tab", route:"PO", packSize:10, packUnit:"แผง", types:["po"]},
+  {name:"MST 30 mg/tab", unit:"tab", route:"PO", packSize:10, packUnit:"แผง", types:["po"]},
+  {name:"Kapanol 20 mg", unit:"cap", route:"PO", packSize:10, packUnit:"แผง", types:["po"]},
+  {name:"Methadone", unit:"mg", route:"PO", packSize:null, packUnit:null, types:["po"]},
+  {name:"Morphine syrup 10 mg/5 mL", unit:"mL", route:"PO", packSize:60, packUnit:"ขวด", types:["po"]},
+  {name:"Morphine IR 10 mg/tab", unit:"tab", route:"SL", packSize:10, packUnit:"แผง", types:["po_prn"]},
+  {name:"Morphine injection 10 mg/mL (1 amp)", unit:"mg", route:"IV/SC", packSize:1, packUnit:"amp", types:["inj_prn"]},
+  {name:"Fentanyl patch 25 mcg/hr", unit:"patch", route:"patch", packSize:5, packUnit:"กล่อง", types:["po"]},
+  {name:"Fentanyl injection 100 mcg/2 mL (1 amp)", unit:"mcg", route:"IV", packSize:1, packUnit:"amp", types:["inj_prn"]},
+  {name:"Midazolam", unit:"mg", route:"SC", packSize:1, packUnit:"amp", types:["inj_prn"]},
+  {name:"Haloperidol", unit:"mg", route:"SC", packSize:1, packUnit:"amp", types:["inj_prn"]},
+  {name:"Senna", unit:"tab", route:"PO", packSize:100, packUnit:"ขวด", types:["po", "po_prn"]},
+  {name:"Lactulose", unit:"mL", route:"PO", packSize:300, packUnit:"ขวด", types:["po", "po_prn"]},
+  {name:"Atropine 1% eye drops", unit:"หยด", route:"SL", packSize:null, packUnit:null, types:["po_prn"]},
+  {name:"Lorazepam 1 mg", unit:"mg", route:"SL", packSize:10, packUnit:"แผง", types:["po_prn"]},
+  {name:"Hyoscine butylbromide (Buscopan) injection 20 mg/mL (1 amp)", unit:"mg", route:"IV/SC", packSize:1, packUnit:"amp", types:["inj_prn"]},
 ];
 
 // ---------- Safety: Drug Interactions ----------
@@ -360,6 +389,10 @@ function bindSpans(){
   });
   updatePdfToList();
   updatePdfVisibility();
+  // Apply fit-to-one-page scaling if enabled
+  if (typeof applyFitToOnePage === 'function') {
+    setTimeout(applyFitToOnePage, 50);
+  }
 }
 
 // ---------- Caregivers ----------
@@ -583,19 +616,18 @@ function medLine(m){
     return `${nameShort} ${total} mg + ${diluent} up to ${vol} mL via ${via} @ ${rateDisplay} mL/h${paren}${qtyPart}`;
   }
 
-  // Patch — no category label
+  // Patch — use full instruction as-is to preserve custom text
   if(/patch/i.test(m.route||"") || /patch/i.test(name)){
-    const rateMatch = name.match(/(\d+\s*mcg\/hr)/i);
-    const rateTxt = rateMatch ? rateMatch[1] : "";
-    const nameBase = rateTxt ? name.replace(rateMatch[0], "").trim().replace(/\s{2,}/g,' ') : name;
-    const applyMatch = use.match(/Apply\s+(\d+)\s+patch/i);
-    const n = applyMatch ? applyMatch[1] : "1";
-    const site = (use.match(/to\s+([^,]+)\s*,/i)?.[1]) || (use.match(/to\s+([^,]+)$/i)?.[1]) || "chest/upper arm";
-    const q = (use.match(/change\s+q?([\d–-]+)h/i)?.[1]) || "72";
-    return `${nameBase} ${rateTxt} — Apply ${n} patch to ${site}, change q${q}h${qtyPart}`;
+    return `${name} — ${use}${qtyPart}`;
   }
 
   // PO/SL/Inject — no category label
+  // Use the full instruction as-is to preserve custom text like "then stop", "for 7 days", etc.
+  if(/\b(PO|SL|IV|SC|IV\/SC)\b/i.test(use) || /\b(PO|SL|IV|SC)\b/i.test(m.route||"")){
+    return `${name} — ${use}${qtyPart}`;
+  }
+
+  // Fallback: try to parse if route/use don't match expected patterns
   const dose = (use.match(/^(\d+(?:\.\d+)?(?:\s*[–-]\s*\d+(?:\.\d+)?)?)\s*(mg|mcg|mL|ml|tab|cap|หยด)\b/i)?.[0]) || "";
   const routeTxt = (use.match(/\b(PO|SL|IV\/SC|IV|SC)\b/i)?.[0] || (m.route||""));
   const isPRN = /\bPRN\b/i.test(use) || /prn/i.test((m.orderType||""));
@@ -896,6 +928,11 @@ function renderPrintDoc(){
 
   // Calculate and update page estimate (debounced)
   debouncedUpdatePageEstimate();
+
+  // Apply fit-to-one-page scaling if enabled
+  if (typeof applyFitToOnePage === 'function') {
+    setTimeout(applyFitToOnePage, 100);
+  }
 }
 
 // Debounced version of updatePageEstimate for better performance
@@ -1197,6 +1234,11 @@ function initOrderTypeSwitcher(){
     const isInf = (v === 'inf');
     single?.classList.toggle('hidden', isInf);
     inf?.classList.toggle('hidden', !isInf);
+
+    // Update formulary datalist based on orderType
+    if(!isInf){
+      fillFormulary(v);
+    }
   };
   radios.forEach(r => r.addEventListener('change', apply));
   apply();
@@ -1260,8 +1302,13 @@ function renderMeds(){
       const actualIndex = meds.indexOf(m);
       const row=document.createElement("div");
       row.className="med-row";
+
+      // Add icon inline (not absolute positioned) for proper alignment with warning icons
+      const isPatch = /patch/i.test(m.route||"") || /patch/i.test(m.name||"");
+      const icon = m.orderType === 'infusion' ? '' : (isPatch ? '🩹' : '💊');
+
       row.innerHTML=`
-        <div class="use">${escapeHTML(medLine(m))}</div>
+        <div class="use">${icon ? `<span style="margin-right:8px;">${icon}</span>` : ''}${escapeHTML(medLine(m))}</div>
         <div class="act">
           <button type="button" class="small" data-edit="${actualIndex}">แก้ไข</button>
           <button type="button" class="small danger" data-i="${actualIndex}">ลบ</button>
@@ -1362,10 +1409,12 @@ function buildHisNote(){
 
 // ---------- Dropdown & Inputs ----------
 // ---------- Order UI (single-line + prediction + edit) ----------
-function fillFormulary(){
+function fillFormulary(orderType = "po"){
   const dl=$("#formulary"); if(!dl) return;
   dl.innerHTML="";
-  FORMULARY.forEach(d=>{ const o=document.createElement("option"); o.value=d.name; dl.appendChild(o); });
+  // Filter by orderType
+  const filtered = FORMULARY.filter(d => !d.types || d.types.includes(orderType));
+  filtered.forEach(d=>{ const o=document.createElement("option"); o.value=d.name; dl.appendChild(o); });
 }
 function inferUnitFromName(name){
   const f=FORMULARY.find(x=>x.name.toLowerCase()===String(name||"").toLowerCase());
@@ -1375,6 +1424,56 @@ function inferRouteFromName(name){
   const f=FORMULARY.find(x=>x.name.toLowerCase()===String(name||"").toLowerCase());
   return f? f.route: "";
 }
+function inferPackInfoFromName(name){
+  const f=FORMULARY.find(x=>x.name.toLowerCase()===String(name||"").toLowerCase());
+  return f? {packSize: f.packSize, packUnit: f.packUnit} : {packSize: null, packUnit: null};
+}
+
+// Update unit labels in UI based on selected drug
+function updateUnitLabels(drugName){
+  const unit = inferUnitFromName(drugName);
+  const packInfo = inferPackInfoFromName(drugName);
+
+  // Update dose unit label
+  const doseUnitLabel = $("#doseUnitLabel");
+  if(doseUnitLabel){
+    // If not in formulary, try to infer from name
+    if(!unit){
+      const inferredUnit = inferUnitFromDrugText(drugName);
+      doseUnitLabel.textContent = inferredUnit;
+    } else {
+      doseUnitLabel.textContent = unit;
+    }
+  }
+
+  // Update quantity pack label
+  const qtyPackLabel = $("#qtyPackLabel");
+  if(qtyPackLabel){
+    if(packInfo.packSize && packInfo.packUnit){
+      qtyPackLabel.textContent = `(${packInfo.packSize} ${unit}/${packInfo.packUnit})`;
+    } else if(unit) {
+      qtyPackLabel.textContent = `(${unit})`;
+    } else {
+      const inferredUnit = inferUnitFromDrugText(drugName);
+      qtyPackLabel.textContent = inferredUnit ? `(${inferredUnit})` : "";
+    }
+  }
+}
+
+// Infer unit from free text drug name (for drugs not in formulary)
+function inferUnitFromDrugText(drugName){
+  const dn = (drugName||'').toLowerCase();
+  if(/\btab\b/i.test(dn)) return 'tab';
+  if(/\bcap\b/i.test(dn)) return 'cap';
+  if(/\bpatch\b/i.test(dn)) return 'patch';
+  if(/\bamp\b/i.test(dn)) return 'amp';
+  if(/\bml\b|mL/i.test(dn)) return 'mL';
+  if(/\bmg\b/i.test(dn)) return 'mg';
+  if(/\bmcg\b/i.test(dn)) return 'mcg';
+  if(/syrup|น้ำ/i.test(dn)) return 'mL';
+  return '';
+}
+
 function predictFromUnitCount(drugName, count){
   const dn=(drugName||"").toLowerCase();
   const c=Number(count||0);
@@ -1416,10 +1515,25 @@ function updateFrequencyPlaceholder(){
   const list=$("#freqList"); if(!list) return;
   let preds=predictFromUnitCount(name, dose);
   if(!preds) preds=predictFreq(name, dose);
+
+  // Replace dose in predictions with actual dose value
+  if(dose){
+    preds = preds.map(p => replaceDoseInText(p, dose));
+  }
+
   const freq=$("#freq"); if(freq){ freq.placeholder=preds[0]||""; }
   list.innerHTML="";
   preds.forEach(p=>{ const o=document.createElement("option"); o.value=p; list.appendChild(o); });
   if(freq) freq.setAttribute("list","freqList");
+}
+
+// Helper: Replace leading dose number in text with new dose
+function replaceDoseInText(text, newDose){
+  if(!text || !newDose) return text;
+  // Match patterns like "1 tab", "1-2 tab", "1/2-1 tab", "0.5-1 mg", "1–2 tab" at the start
+  // Replace entire dose range with single dose value
+  // Matches: "1", "1-2", "1/2-1", "0.5-1", "1–2" (with various dash types)
+  return text.replace(/^[\d.]+(?:\s*[-–\/]\s*[\d.]+)*/, newDose);
 }
 function parseDoseFromUse(useText){
   const t=(useText||"").toLowerCase();
@@ -1442,33 +1556,80 @@ function initOrderUI(){
       return;
     }
 
-    let freq=($("#freq").value||"").trim();
-    if(!freq) freq=$("#freq").placeholder||"";
+    // Get frequency/instruction from freq field
+    const dose=($("#dose").value||"").trim();
+    let freq = ($("#freq").value||"").trim();
+    if(!freq) freq = $("#freq").placeholder||"";
+
+    // Build full instruction: dose + unit + route + freq
     const unit=inferUnitFromName(name);
     const route=inferRouteFromName(name);
+
+    // Construct complete instruction for saving
+    let fullInstruction = freq;
+    const isPatch = /patch/i.test(unit) || /patch/i.test(route) || /patch/i.test(name);
+
+    if(dose && unit && !isPatch){
+      // For non-patches: If freq doesn't already start with dose, prepend it
+      const startsWithDose = /^[\d.]+(?:\s*[-–\/]\s*[\d.]+)*\s*(mg|mcg|mL|ml|tab|cap|หยด)\b/i.test(freq);
+      if(!startsWithDose){
+        fullInstruction = `${dose} ${unit}`;
+        if(route) fullInstruction += ` ${route}`;
+        fullInstruction += ` ${freq}`;
+      } else {
+        // Already has dose, use as-is
+        fullInstruction = freq;
+      }
+    }
+    // For patches: use freq as-is (it already contains "Apply X patch..." from predictUse)
+
     const modeEl = document.querySelector('input[name="orderType"]:checked');
     const mode = modeEl ? modeEl.value : 'po';
     const forcedPrn = (mode==='po_prn' || mode==='inj_prn');
-    const orderType = (forcedPrn || /\bPRN\b/i.test(freq))?"prn":"standing";
+    const orderType = (forcedPrn || /\bPRN\b/i.test(fullInstruction))?"prn":"standing";
     const qty = qtyStr? Number(qtyStr): undefined;
+
     if(editIndex!=null){
       const m=meds[editIndex]; if(!m) return;
-      m.name=name; m.route=route; m.unit=unit; m.qty=qty; m.use=freq; m.orderType=orderType;
+      m.name=name; m.route=route; m.unit=unit; m.qty=qty; m.use=fullInstruction.trim(); m.orderType=orderType; m.dose=dose;
       renderMeds(); safetyChecks(); saveAll(); snack("แก้ไขแล้ว","ok");
       editIndex=null; $("#addOne").textContent="+ เพิ่ม";
     }else{
-      addMed({name,route,unit,qty,use:freq,orderType});
+      addMed({name,route,unit,qty,use:fullInstruction.trim(),orderType,dose});
     }
-    $("#freq").value=""; $("#dose").value=""; $("#qty").value=""; $("#drugName").value=""; $("#drugName").focus();
+    $("#freq").value=""; $("#dose").value=""; $("#qty").value=""; $("#drugName").value="";
+    $("#drugName").focus();
   };
 
-  $("#dose")?.addEventListener("input", updateFrequencyPlaceholder);
-  $("#drugName")?.addEventListener("change", updateFrequencyPlaceholder);
-  $("#drugName")?.addEventListener("input", ()=>{ if(!$("#dose").value) updateFrequencyPlaceholder(); });
+  $("#dose")?.addEventListener("input", ()=>{
+    updateFrequencyPlaceholder();
+  });
+  $("#freq")?.addEventListener("input", ()=>{
+    // Auto-replace dose in freq with current dose value
+    const doseVal = $("#dose")?.value?.trim();
+    const freqVal = $("#freq")?.value?.trim();
+
+    if(doseVal && freqVal){
+      // Match leading number in freq and replace with dose
+      const replaced = freqVal.replace(/^[\d.]+/, doseVal);
+      if(replaced !== freqVal){
+        $("#freq").value = replaced;
+      }
+    }
+  });
+  $("#drugName")?.addEventListener("change", ()=>{
+    updateFrequencyPlaceholder();
+    updateUnitLabels($("#drugName")?.value?.trim()||"");
+  });
+  $("#drugName")?.addEventListener("input", ()=>{
+    if(!$("#dose").value) updateFrequencyPlaceholder();
+    updateUnitLabels($("#drugName")?.value?.trim()||"");
+  });
   $("#addOne")?.addEventListener("click", onAddOrEdit);
   $("#clearOne")?.addEventListener("click", ()=>{
     editIndex=null; $("#addOne").textContent="+ เพิ่ม";
-    $("#drugName").value=""; $("#dose").value=""; $("#freq").value=""; $("#freq").placeholder=""; $("#freqList").innerHTML=""; $("#qty").value=""; $("#drugName").focus();
+    $("#drugName").value=""; $("#dose").value=""; $("#freq").value=""; $("#freq").placeholder=""; $("#freqList").innerHTML=""; $("#qty").value="";
+    $("#drugName").focus();
   });
   $("#freq")?.addEventListener("keydown", (e)=>{ if(e.key==="Enter"){ e.preventDefault(); onAddOrEdit(); } });
 
@@ -1531,8 +1692,25 @@ function initOrderUI(){
         $("#infusionOrder")?.scrollIntoView({behavior:'smooth', block:'center'});
       }else{
         // populate single-line order UI
-        $("#drugName").value=m.name||""; $("#freq").value=m.use||""; $("#qty").value=(m.qty!=null? m.qty:"");
-        const dose=parseDoseFromUse(m.use||""); $("#dose").value=dose; updateFrequencyPlaceholder();
+        $("#drugName").value=m.name||"";
+        $("#qty").value=(m.qty!=null? m.qty:"");
+
+        // Use stored dose if available, otherwise parse from use
+        const dose=m.dose || parseDoseFromUse(m.use||"");
+        $("#dose").value=dose;
+
+        // Remove dose+unit+route prefix from use to show only freq part
+        let freqOnly = m.use || "";
+
+        // For patches: use the full instruction as-is (don't try to parse)
+        const isPatch = /patch/i.test(m.route||"") || /patch/i.test(m.name||"");
+        if(!isPatch && dose && freqOnly){
+          // Remove leading dose pattern like "10 tab PO", "0.5-1 mg SC", etc.
+          freqOnly = freqOnly.replace(/^[\d.]+(?:\s*[-–\/]\s*[\d.]+)*\s*(mg|mcg|mL|ml|tab|cap|หยด)(?:\s+(PO|SL|IV|SC|IV\/SC))?\s*/i, '').trim();
+        }
+        $("#freq").value=freqOnly;
+
+        updateFrequencyPlaceholder();
         editIndex=i; $("#addOne").textContent="บันทึกการแก้ไข"; $("#drugName").focus();
       }
     }
@@ -1604,15 +1782,173 @@ function applyPrintPrefs(){
 
 function initPrintPrefsUI(){
   const fontSel=$("#printFont"), sizeInp=$("#printSize"), lhInp=$("#printLineHeight");
-  const wordLike=$("#printWordLike"), wInp=$("#printWidth");
+  const wordLike=$("#printWordLike"), wInp=$("#printWidth"), fitOnePage=$("#fitOnePage");
   const showPrinted=$("#printShowPrinted"), showPgn=$("#printShowPgn");
-  if(fontSel){ fontSel.value = state.printFont || 'TH SarabunPSK'; fontSel.addEventListener('change',()=>{ state.printFont=fontSel.value; applyPrintPrefs(); saveAll(); }); }
-  if(sizeInp){ sizeInp.value = state.printSize || 16; sizeInp.addEventListener('input',()=>{ const v=+sizeInp.value||16; state.printSize=v; applyPrintPrefs(); saveAll(); }); }
-  if(lhInp){ lhInp.value = state.printLineHeight || 1.35; lhInp.addEventListener('input',()=>{ const v=+lhInp.value||1.35; state.printLineHeight=v; applyPrintPrefs(); saveAll(); }); }
-  if(wordLike){ wordLike.checked = state.printWordLike!==false; wordLike.addEventListener('change',()=>{ state.printWordLike=wordLike.checked; applyPrintPrefs(); saveAll(); }); }
-  if(wInp){ wInp.value = state.printWidth || 190; wInp.addEventListener('input',()=>{ const v=+wInp.value||190; state.printWidth=v; applyPrintPrefs(); saveAll(); }); }
-  if(showPrinted){ showPrinted.checked = state.printShowPrinted!==false; showPrinted.addEventListener('change',()=>{ state.printShowPrinted=showPrinted.checked; applyPrintPrefs(); saveAll(); }); }
-  if(showPgn){ showPgn.checked = !!state.printShowPgn; showPgn.addEventListener('change',()=>{ state.printShowPgn=showPgn.checked; applyPrintPrefs(); saveAll(); }); }
+
+  // Value display elements
+  const sizeValue=$("#printSizeValue"), lhValue=$("#printLineHeightValue"), widthValue=$("#printWidthValue");
+
+  // Panel controls
+  const toggleBtn=$("#togglePrintSettings"), closeBtn=$("#closePrintSettings");
+  const applyBtn=$("#applyPrintSettings"), resetBtn=$("#resetPrintSettings");
+  const panel=$("#printSettingsPanel");
+
+  // Toggle panel
+  if(toggleBtn && panel){
+    toggleBtn.addEventListener('click', ()=>{
+      panel.classList.toggle('hidden');
+      if(!panel.classList.contains('hidden')){
+        panel.scrollIntoView({behavior:'smooth', block:'center'});
+      }
+    });
+  }
+
+  // Close panel
+  if(closeBtn && panel){
+    closeBtn.addEventListener('click', ()=>{ panel.classList.add('hidden'); });
+  }
+
+  // Update display values
+  function updateDisplayValues(){
+    if(sizeValue) sizeValue.textContent = (state.printSize || 16) + 'pt';
+    if(lhValue) lhValue.textContent = (state.printLineHeight || 1.35);
+    if(widthValue) widthValue.textContent = (state.printWidth || 190) + 'mm';
+  }
+
+  // Font family
+  if(fontSel){
+    fontSel.value = state.printFont || 'TH SarabunPSK';
+    fontSel.addEventListener('change',()=>{
+      state.printFont=fontSel.value;
+      applyPrintPrefs();
+      saveAll();
+    });
+  }
+
+  // Font size (range slider)
+  if(sizeInp){
+    sizeInp.value = state.printSize || 16;
+    updateDisplayValues();
+    sizeInp.addEventListener('input',()=>{
+      const v=+sizeInp.value||16;
+      state.printSize=v;
+      updateDisplayValues();
+      applyPrintPrefs();
+      saveAll();
+    });
+  }
+
+  // Line height (range slider)
+  if(lhInp){
+    lhInp.value = state.printLineHeight || 1.35;
+    updateDisplayValues();
+    lhInp.addEventListener('input',()=>{
+      const v=+lhInp.value||1.35;
+      state.printLineHeight=v;
+      updateDisplayValues();
+      applyPrintPrefs();
+      saveAll();
+    });
+  }
+
+  // Page width (range slider)
+  if(wInp){
+    wInp.value = state.printWidth || 190;
+    updateDisplayValues();
+    wInp.addEventListener('input',()=>{
+      const v=+wInp.value||190;
+      state.printWidth=v;
+      updateDisplayValues();
+      applyPrintPrefs();
+      saveAll();
+    });
+  }
+
+  // Fit to one page
+  if(fitOnePage){
+    fitOnePage.checked = !!state.fitOnePage;
+    fitOnePage.addEventListener('change',()=>{
+      state.fitOnePage=fitOnePage.checked;
+      document.body.classList.toggle('fit-one-page', fitOnePage.checked);
+      applyPrintPrefs();
+      // Apply dynamic scaling after a short delay to ensure layout is rendered
+      setTimeout(applyFitToOnePage, 100);
+      saveAll();
+    });
+    // Apply initial state
+    document.body.classList.toggle('fit-one-page', fitOnePage.checked);
+    if (fitOnePage.checked) {
+      setTimeout(applyFitToOnePage, 100);
+    }
+  }
+
+  // Word-like layout
+  if(wordLike){
+    wordLike.checked = state.printWordLike!==false;
+    wordLike.addEventListener('change',()=>{
+      state.printWordLike=wordLike.checked;
+      applyPrintPrefs();
+      saveAll();
+    });
+  }
+
+  // Footer options
+  if(showPrinted){
+    showPrinted.checked = state.printShowPrinted!==false;
+    showPrinted.addEventListener('change',()=>{
+      state.printShowPrinted=showPrinted.checked;
+      applyPrintPrefs();
+      saveAll();
+    });
+  }
+
+  if(showPgn){
+    showPgn.checked = !!state.printShowPgn;
+    showPgn.addEventListener('change',()=>{
+      state.printShowPgn=showPgn.checked;
+      applyPrintPrefs();
+      saveAll();
+    });
+  }
+
+  // Reset to defaults
+  if(resetBtn){
+    resetBtn.addEventListener('click', ()=>{
+      state.printFont = 'TH SarabunPSK';
+      state.printSize = 16;
+      state.printLineHeight = 1.35;
+      state.printWidth = 190;
+      state.fitOnePage = false;
+      state.printWordLike = true;
+      state.printShowPrinted = true;
+      state.printShowPgn = false;
+
+      // Update UI
+      if(fontSel) fontSel.value = state.printFont;
+      if(sizeInp) sizeInp.value = state.printSize;
+      if(lhInp) lhInp.value = state.printLineHeight;
+      if(wInp) wInp.value = state.printWidth;
+      if(fitOnePage) fitOnePage.checked = state.fitOnePage;
+      if(wordLike) wordLike.checked = state.printWordLike;
+      if(showPrinted) showPrinted.checked = state.printShowPrinted;
+      if(showPgn) showPgn.checked = state.printShowPgn;
+
+      updateDisplayValues();
+      document.body.classList.remove('fit-one-page');
+      applyPrintPrefs();
+      saveAll();
+      snack('รีเซ็ตค่าเริ่มต้นแล้ว', 'ok');
+    });
+  }
+
+  // Apply button (close panel)
+  if(applyBtn && panel){
+    applyBtn.addEventListener('click', ()=>{
+      panel.classList.add('hidden');
+      snack('ใช้การตั้งค่าแล้ว', 'ok');
+    });
+  }
+
   applyPrintPrefs();
 }
 // legacy med actions removed; handled in initOrderUI
