@@ -8,6 +8,88 @@ const $$ = (s)=>Array.from(document.querySelectorAll(s));
 const snack=(m,t="info")=>{const e=$("#snack"); if(!e) return; e.textContent=m; e.className=t; e.style.opacity=1; setTimeout(()=>e.style.opacity=0,2500);};
 const todayISO=()=>new Date().toISOString().slice(0,10);
 
+// Debounce utility for performance optimization
+const debounce = (func, delay) => {
+  let timeoutId;
+  return function(...args) {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => func.apply(this, args), delay);
+  };
+};
+
+// XSS Protection - Escape HTML entities to prevent script injection
+const escapeHTML = (str) => {
+  if(!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+};
+
+// Input Validation for Medical Fields - Prevents data entry errors
+const VALIDATORS = {
+  pAge: (v) => {
+    const age = Number(v);
+    if(age < 0 || age > 150) return 'อายุต้องอยู่ระหว่าง 0-150 ปี';
+    return null;
+  },
+  pps: (v) => {
+    const pps = Number(v);
+    if(pps < 10 || pps > 100) return 'PPS ต้องอยู่ระหว่าง 10-100%';
+    if(pps % 10 !== 0) return 'PPS ต้องเป็นทวีคูณของ 10';
+    return null;
+  },
+  gfr: (v) => {
+    const gfr = Number(v);
+    if(gfr < 0 || gfr > 200) return 'GFR ต้องอยู่ระหว่าง 0-200 mL/min/1.73m²';
+    return null;
+  },
+  hct: (v) => {
+    const hct = Number(v);
+    if(hct < 0 || hct > 100) return 'Hct ต้องอยู่ระหว่าง 0-100%';
+    return null;
+  },
+  alb: (v) => {
+    const alb = Number(v);
+    if(alb < 0 || alb > 10) return 'Albumin ต้องอยู่ระหว่าง 0-10 g/dL';
+    return null;
+  },
+  painScore: (v) => {
+    const score = Number(v);
+    if(score < 0 || score > 10) return 'Pain Score ต้องอยู่ระหว่าง 0-10';
+    return null;
+  },
+  dyspneaScore: (v) => {
+    const score = Number(v);
+    if(score < 0 || score > 10) return 'Dyspnea Score ต้องอยู่ระหว่าง 0-10';
+    return null;
+  },
+  spo2: (v) => {
+    const spo2 = Number(v);
+    if(spo2 < 0 || spo2 > 100) return 'SpO2 ต้องอยู่ระหว่าง 0-100%';
+    return null;
+  },
+  hr: (v) => {
+    const hr = Number(v);
+    if(hr < 20 || hr > 250) return 'HR ต้องอยู่ระหว่าง 20-250 ครั้ง/นาที';
+    return null;
+  },
+  vsRR: (v) => {
+    const rr = Number(v);
+    if(rr < 5 || rr > 60) return 'RR ต้องอยู่ระหว่าง 5-60 ครั้ง/นาที';
+    return null;
+  }
+};
+
+function validateInput(fieldId, value){
+  if(!value || value === '') return null; // Empty is OK
+  const validator = VALIDATORS[fieldId];
+  if(!validator) return null; // No validator = OK
+  return validator(value);
+}
+
 const STORAGE_KEY="palliative-referral-v1.3";
 const DRIVE_FOLDER_URL = "https://drive.google.com/drive/folders/1B2ZrpYjFTve6aypQRXjr4l5Ge2F2j0Wf?usp=share_link";
 let state={}, meds=[];
@@ -61,12 +143,72 @@ const FORMULARY=[
   {name:"Hyoscine butylbromide (Buscopan) injection 20 mg/mL (1 amp)", unit:"mg", route:"IV/SC"},
 ];
 
-// ---------- Safety ----------
+// ---------- Safety: Drug Interactions ----------
+const DRUG_INTERACTIONS = {
+  'Morphine+Midazolam': {
+    severity: 'moderate',
+    warning: 'เสี่ยงหยุดหายใจ - ระวังขนาดยา monitor RR'
+  },
+  'Morphine+Haloperidol': {
+    severity: 'moderate',
+    warning: 'เสี่ยง sedation เพิ่ม - ระวัง CNS depression'
+  },
+  'Methadone+Haloperidol': {
+    severity: 'high',
+    warning: '⚠️ เสี่ยง QT prolongation - พิจารณาตรวจ EKG'
+  },
+  'Midazolam+Haloperidol': {
+    severity: 'moderate',
+    warning: 'เสี่ยง over-sedation - ปรับขนาดยาอย่างระมัดระวัง'
+  },
+  'Fentanyl+Midazolam': {
+    severity: 'moderate',
+    warning: 'เสี่ยงหยุดหายใจ - monitor vital signs'
+  }
+};
+
+function checkDrugInteractions(){
+  if(!meds || meds.length < 2) return;
+
+  const drugNames = meds.map(m => shortDrugName(m.name));
+  const interactions = [];
+
+  for(let i=0; i<drugNames.length; i++){
+    for(let j=i+1; j<drugNames.length; j++){
+      const pair1 = `${drugNames[i]}+${drugNames[j]}`;
+      const pair2 = `${drugNames[j]}+${drugNames[i]}`;
+      const interaction = DRUG_INTERACTIONS[pair1] || DRUG_INTERACTIONS[pair2];
+
+      if(interaction){
+        interactions.push({
+          drugs: `${drugNames[i]} + ${drugNames[j]}`,
+          ...interaction
+        });
+      }
+    }
+  }
+
+  if(interactions.length > 0){
+    interactions.forEach(int => {
+      const severity = int.severity === 'high' ? 'danger' : 'warn';
+      snack(`💊 ${int.drugs}: ${int.warning}`, severity);
+    });
+  }
+}
+
 function safetyChecks(){
-  const opioid=/morphine|mst|kapanol|methadone|fentanyl/i;
-  const hasOpioid=meds.some(m=>opioid.test(m.name));
+  if(!meds || meds.length === 0) return;
+
+  // Check 1: Opioid without laxative
+  const opioid=/\b(morphine|mst|kapanol|methadone|fentanyl)\b/i;
+  const hasOpioid=meds.some(m=>m.name && opioid.test(m.name));
   const hasLax=meds.some(m=>/senna|lactulose|bisacodyl|sodium picosulfate/.test((m.name+" "+(m.use||"")+ (m.doseText||"")).toLowerCase()));
-  if(hasOpioid && !hasLax){ snack("⚠️ พบ opioid แต่ยังไม่มี laxative — แนะนำ Senna/Lactulose", "warn"); }
+  if(hasOpioid && !hasLax){
+    snack("⚠️ พบ opioid แต่ยังไม่มี laxative — แนะนำ Senna/Lactulose", "warn");
+  }
+
+  // Check 2: Drug interactions
+  checkDrugInteractions();
 }
 
 // ---------- Name shortener for compact display ----------
@@ -96,14 +238,100 @@ function shortDrugName(name){
   return parts.length? parts[0].charAt(0).toUpperCase()+parts[0].slice(1) : (name||'');
 }
 
-// ---------- Storage ----------
-function saveAll(){ localStorage.setItem(STORAGE_KEY, JSON.stringify({state,meds,caregivers,ts:Date.now()})); }
+// ---------- Undo/Redo Stack ----------
+let undoStack = [];
+const MAX_UNDO = 20;
+
+function pushUndo(action, data){
+  undoStack.push({action, data, timestamp: Date.now()});
+  if(undoStack.length > MAX_UNDO) undoStack.shift();
+}
+
+function performUndo(){
+  if(undoStack.length === 0){
+    snack('ไม่มีอะไรให้ undo', 'warn');
+    return;
+  }
+
+  const lastAction = undoStack.pop();
+
+  if(lastAction.action === 'deleteMed'){
+    // Restore deleted medication
+    const {med, index} = lastAction.data;
+    meds.splice(index, 0, med);
+    renderMeds();
+    saveAll();
+    snack('กู้คืนยาแล้ว', 'ok');
+  }
+}
+
+// Global keyboard shortcut for undo
+document.addEventListener('keydown', (e)=>{
+  if((e.ctrlKey || e.metaKey) && e.key === 'z'){
+    e.preventDefault();
+    performUndo();
+  }
+});
+
+// ---------- Storage with Error Handling ----------
+let saveStatusTimeout = null;
+
+function showSaveStatus(status){
+  const saveStatusEl = document.getElementById('saveStatus');
+  if(!saveStatusEl) return;
+
+  saveStatusEl.classList.remove('saved', 'saving');
+  saveStatusEl.classList.add('show', status);
+
+  if(status === 'saved'){
+    saveStatusEl.textContent = '✓ บันทึกแล้ว';
+  } else if(status === 'saving'){
+    saveStatusEl.textContent = 'กำลังบันทึก...';
+  }
+
+  // Clear previous timeout
+  if(saveStatusTimeout) clearTimeout(saveStatusTimeout);
+
+  // Hide after 2 seconds
+  saveStatusTimeout = setTimeout(() => {
+    saveStatusEl.classList.remove('show');
+  }, 2000);
+}
+
+function saveAll(){
+  showSaveStatus('saving');
+  try{
+    const data = JSON.stringify({state,meds,caregivers,ts:Date.now()});
+    localStorage.setItem(STORAGE_KEY, data);
+    showSaveStatus('saved');
+  }catch(err){
+    console.error('Failed to save data:', err);
+    snack('⚠️ ไม่สามารถบันทึกข้อมูลได้ - localStorage อาจเต็ม', 'danger');
+  }
+}
+
 function loadAll(){
   try{
-    const raw=localStorage.getItem(STORAGE_KEY); if(!raw) return false;
-    const d=JSON.parse(raw)||{}; state=d.state||{}; meds=d.meds||[]; caregivers = Array.isArray(d.caregivers)? d.caregivers: [];
+    const raw=localStorage.getItem(STORAGE_KEY);
+    if(!raw) return false;
+
+    const d=JSON.parse(raw)||{};
+
+    // Validate data structure
+    if(typeof d !== 'object'){
+      throw new Error('Invalid data format');
+    }
+
+    state=d.state||{};
+    meds=Array.isArray(d.meds)? d.meds: [];
+    caregivers=Array.isArray(d.caregivers)? d.caregivers: [];
+
     return true;
-  }catch{ return false; }
+  }catch(err){
+    console.error('Failed to load data:', err);
+    snack('⚠️ ไม่สามารถโหลดข้อมูลได้ - ข้อมูลอาจเสียหาย', 'danger');
+    return false;
+  }
 }
 
 // ---------- Format helpers ----------
@@ -150,9 +378,9 @@ function renderCaregivers(){
     row.className = 'row cg-row';
     row.innerHTML = `
       <span class="cg-tag" title="คนแรกเป็นผู้ดูแลหลักเสมอ">${i===0? 'หลัก': 'รอง'}</span>
-      <input class="grow" placeholder="ชื่อผู้ดูแล" value="${c.name||''}" data-i="${i}" data-field="name" />
-      <input placeholder="ความสัมพันธ์" value="${c.relation||''}" data-i="${i}" data-field="relation" style="max-width:160px" />
-      <input placeholder="โทรศัพท์" value="${c.tel||''}" data-i="${i}" data-field="tel" style="max-width:160px" />
+      <input class="grow" placeholder="ชื่อผู้ดูแล" value="${escapeHTML(c.name||'')}" data-i="${i}" data-field="name" />
+      <input placeholder="ความสัมพันธ์" value="${escapeHTML(c.relation||'')}" data-i="${i}" data-field="relation" style="max-width:160px" />
+      <input placeholder="โทรศัพท์" value="${escapeHTML(c.tel||'')}" data-i="${i}" data-field="tel" style="max-width:160px" />
       <button type="button" class="small" data-act="up" data-i="${i}">↑</button>
       <button type="button" class="small" data-act="down" data-i="${i}">↓</button>
       <button type="button" class="small danger" data-act="del" data-i="${i}">ลบ</button>
@@ -167,7 +395,16 @@ function renderCaregivers(){
       const i = +e.target.getAttribute('data-i');
       const f = e.target.getAttribute('data-field');
       if(!caregivers[i]) return;
-      caregivers[i][f] = e.target.value;
+
+      // Auto-format phone numbers
+      if(f === 'tel'){
+        const formatted = formatThaiPhone(e.target.value);
+        e.target.value = formatted;
+        caregivers[i][f] = formatted;
+      } else {
+        caregivers[i][f] = e.target.value;
+      }
+
       syncCarePrimaryToState();
       renderPrintDoc();
       saveAll();
@@ -570,7 +807,9 @@ function buildPrintHTML(){
   const bps=get('bpSys'), bpd=get('bpDia'), hr=get('hr');
   if(bps||bpd||hr) lines.push(`<p>V/S: BP ${e(bps||'-')}/${e(bpd||'-')} mmHg; HR ${e(hr||'-')}/min${rr?`; RR ${e(rr)}/min`:''}</p>`);
 
-  const medsHtml = meds.map(m=>`<li>${e(medLine(m))}</li>`).join('');
+  // Sort meds for print (no headers, just logical order)
+  const sortedMeds = sortMedsByPriority(meds);
+  const medsHtml = sortedMeds.map(m=>`<li>${e(medLine(m))}</li>`).join('');
   const tddLine = tddSummaryText();
 
   // Single-column layout
@@ -655,9 +894,12 @@ function renderPrintDoc(){
   const pf = document.querySelector('#printFooter .printed');
   if(pf) pf.textContent = 'Printed on ' + new Date().toLocaleString('th-TH', { dateStyle:'medium', timeStyle:'short' });
 
-  // Calculate and update page estimate
-  updatePageEstimate();
+  // Calculate and update page estimate (debounced)
+  debouncedUpdatePageEstimate();
 }
+
+// Debounced version of updatePageEstimate for better performance
+const debouncedUpdatePageEstimate = debounce(updatePageEstimate, 200);
 
 function updatePageEstimate(){
   const el = document.getElementById('printDoc');
@@ -676,8 +918,15 @@ function updatePageEstimate(){
     const pxPerMM = pxPerInch / mmPerInch;
     const contentHeightMM = contentHeight / pxPerMM;
 
-    // A4 = 297mm, margins top+bottom = 15+12 = 27mm
-    const printableHeightPerPage = 270; // mm
+    // Get dimensions from CSS variables
+    const rootStyles = getComputedStyle(document.documentElement);
+    const pageHeightMM = parseFloat(rootStyles.getPropertyValue('--page-h')) || 297;
+    const padTopMM = parseFloat(rootStyles.getPropertyValue('--pdf-pad-top')) || 6;
+    const padBottomMM = parseFloat(rootStyles.getPropertyValue('--pdf-pad-bottom')) || 10;
+
+    // Calculate printable area (A4 297mm - top 6mm - bottom 10mm = 281mm content area)
+    // But @page margins are 15mm top + 12mm bottom = 27mm, leaving ~270mm
+    const printableHeightPerPage = pageHeightMM - 15 - 12; // Use @page margins
     const estimatedPages = Math.ceil(contentHeightMM / printableHeightPerPage);
 
     let className = 'ok';
@@ -732,9 +981,9 @@ function renderMixRows(){
     const wrap=document.createElement('div');
     wrap.className='row';
     wrap.innerHTML = `
-      <input class="grow" placeholder="ชื่อยา (IV/SC เท่านั้น)" list="formularyIvSc" data-i="${idx}" data-k="name" value="${row.name||''}" />
-      <input type="number" min="0" step="0.5" placeholder="ขนาด${row.unit?` (${row.unit})`:''}" class="dose-input" data-i="${idx}" data-k="dose" value="${row.dose??''}" />
-      <span class="muted" id="mixUnit-${idx}">${row.unit||''}</span>
+      <input class="grow" placeholder="ชื่อยา (IV/SC เท่านั้น)" list="formularyIvSc" data-i="${idx}" data-k="name" value="${escapeHTML(row.name||'')}" />
+      <input type="number" min="0" step="0.5" placeholder="ขนาด${row.unit?` (${escapeHTML(row.unit)})`:''}" class="dose-input" data-i="${idx}" data-k="dose" value="${row.dose??''}" />
+      <span class="muted" id="mixUnit-${idx}">${escapeHTML(row.unit||'')}</span>
       ${idx>0?`<button class="small danger" data-remove="${idx}">ลบ</button>`:''}
     `;
     host.appendChild(wrap);
@@ -952,20 +1201,92 @@ function initOrderTypeSwitcher(){
   radios.forEach(r => r.addEventListener('change', apply));
   apply();
 }
+
+// Smart drug sorting for clinical workflow (no visual grouping, just logical order)
+function sortMedsByPriority(medsList){
+  return [...medsList].sort((a, b) => {
+    // Priority 1: Infusion always first
+    const aInf = a.orderType === 'infusion';
+    const bInf = b.orderType === 'infusion';
+    if(aInf !== bInf) return aInf ? -1 : 1;
+
+    // Priority 2: Scheduled before PRN
+    const aPrn = /prn/i.test(a.use || '');
+    const bPrn = /prn/i.test(b.use || '');
+    if(aPrn !== bPrn) return aPrn ? 1 : -1;
+
+    // Priority 3: Opioids first (within same group)
+    const aOpioid = /morphine|fentanyl|methadone|kapanol|mst/i.test(a.name || '');
+    const bOpioid = /morphine|fentanyl|methadone|kapanol|mst/i.test(b.name || '');
+    if(aOpioid !== bOpioid) return aOpioid ? -1 : 1;
+
+    // Priority 4: Laxatives after opioids
+    const aLax = /senna|lactulose/i.test(a.name || '');
+    const bLax = /senna|lactulose/i.test(b.name || '');
+    if(aLax !== bLax) return aLax ? 1 : -1;
+
+    // Priority 5: Alphabetical (fallback)
+    return (a.name || '').localeCompare(b.name || '', 'th');
+  });
+}
+
+// Group meds for Input UI display (with headers)
+function groupMedsForUI(medsList){
+  const sorted = sortMedsByPriority(medsList);
+  return {
+    infusion: sorted.filter(m => m.orderType === 'infusion'),
+    scheduled: sorted.filter(m => m.orderType !== 'infusion' && !/prn/i.test(m.use || '')),
+    prn: sorted.filter(m => m.orderType !== 'infusion' && /prn/i.test(m.use || ''))
+  };
+}
+
 function renderMeds(){
   const host=$("#medList"); if(!host) return;
   host.innerHTML="";
-  meds.forEach((m,i)=>{
-    const row=document.createElement("div");
-    row.className="med-row";
-    row.innerHTML=`
-      <div class="use">${medLine(m)}</div>
-      <div class="act">
-        <button type="button" class="small" data-edit="${i}">แก้ไข</button>
-        <button type="button" class="small danger" data-i="${i}">ลบ</button>
-      </div>`;
-    host.appendChild(row);
-  });
+
+  // Group by route for better UX in input UI
+  const groups = groupMedsForUI(meds);
+
+  // Helper to render group
+  const renderGroup = (title, items, startIdx) => {
+    if(items.length === 0) return startIdx;
+
+    const header = document.createElement("h4");
+    header.style.cssText = "margin:16px 0 8px 0; font-size:16px; color:#0c4a6e; font-weight:600;";
+    header.textContent = title;
+    host.appendChild(header);
+
+    items.forEach((m) => {
+      const actualIndex = meds.indexOf(m);
+      const row=document.createElement("div");
+      row.className="med-row";
+      row.innerHTML=`
+        <div class="use">${escapeHTML(medLine(m))}</div>
+        <div class="act">
+          <button type="button" class="small" data-edit="${actualIndex}">แก้ไข</button>
+          <button type="button" class="small danger" data-i="${actualIndex}">ลบ</button>
+        </div>`;
+      host.appendChild(row);
+    });
+
+    return startIdx + items.length;
+  };
+
+  // Render groups with headers (Input UI only)
+  let idx = 0;
+  idx = renderGroup("💉 Continuous Infusion", groups.infusion, idx);
+  idx = renderGroup("📅 Scheduled", groups.scheduled, idx);
+  idx = renderGroup("🆘 PRN (As Needed)", groups.prn, idx);
+
+  // If no meds, show empty state
+  if(meds.length === 0){
+    const empty = document.createElement("p");
+    empty.className = "muted";
+    empty.style.padding = "20px";
+    empty.textContent = "ยังไม่มีรายการยา";
+    host.appendChild(empty);
+  }
+
   updateTDDViews();
   renderPrintDoc();
 }
@@ -1113,6 +1434,14 @@ function initOrderUI(){
   const onAddOrEdit=()=>{
     const name=($("#drugName").value||"").trim(); if(!name){ snack("พิมพ์ชื่อยา","warn"); return; }
     const qtyStr=($("#qty").value||"").trim();
+
+    // Validate quantity for medications (not infusions)
+    if(!qtyStr || qtyStr==="0"){
+      snack("กรุณาระบุจำนวนยา","warn");
+      $("#qty").focus();
+      return;
+    }
+
     let freq=($("#freq").value||"").trim();
     if(!freq) freq=$("#freq").placeholder||"";
     const unit=inferUnitFromName(name);
@@ -1143,9 +1472,37 @@ function initOrderUI(){
   });
   $("#freq")?.addEventListener("keydown", (e)=>{ if(e.key==="Enter"){ e.preventDefault(); onAddOrEdit(); } });
 
+  // Keyboard shortcuts for medication form
+  const medInputs = ["#drugName", "#dose", "#freq", "#qty"];
+  medInputs.forEach(sel => {
+    $(sel)?.addEventListener("keydown", (e)=>{
+      // Ctrl+Enter or Cmd+Enter to add medication
+      if((e.ctrlKey || e.metaKey) && e.key==="Enter"){
+        e.preventDefault();
+        onAddOrEdit();
+      }
+    });
+  });
+
   $("#medList")?.addEventListener("click", (e)=>{
     const del=e.target.closest("button[data-i]");
-    if(del){ const i=+del.getAttribute("data-i"); meds.splice(i,1); renderMeds(); saveAll(); return; }
+    if(del){
+      const i=+del.getAttribute("data-i");
+      const medToDelete = meds[i];
+
+      // Confirmation before delete
+      const medName = medToDelete.name || 'ยานี้';
+      if(confirm(`ต้องการลบ "${medName}" หรือไม่?\n\n(กด Ctrl+Z เพื่อ undo ได้ภายหลัง)`)){
+        // Push to undo stack before deleting
+        pushUndo('deleteMed', {med: {...medToDelete}, index: i});
+
+        meds.splice(i,1);
+        renderMeds();
+        saveAll();
+        snack('ลบยาแล้ว (กด Ctrl+Z เพื่อ undo)', 'ok');
+      }
+      return;
+    }
     const ed=e.target.closest("button[data-edit]");
     if(ed){ const i=+ed.getAttribute("data-edit"); const m=meds[i]; if(!m) return;
       if(m.orderType==="infusion"){ // populate mix UI
@@ -1186,7 +1543,23 @@ function initInputs(){
   if($("#refDate") && !$("#refDate").value) $("#refDate").value=todayISO();
 
   FIELD_IDS.forEach(id=>{ const el=$("#"+id); if(!el) return;
-    el.addEventListener("input",()=>{ state[id]=el.value; if(id.startsWith('toFacility')){ readInputsToState(); } renderPrintDoc(); saveAll(); });
+    el.addEventListener("input",()=>{
+      state[id]=el.value;
+      if(id.startsWith('toFacility')){ readInputsToState(); }
+      renderPrintDoc();
+      saveAll();
+    });
+    // Add validation on blur for numeric medical fields
+    if(VALIDATORS[id]){
+      el.addEventListener("blur", ()=>{
+        const error = validateInput(id, el.value);
+        if(error){
+          snack(error, 'warn');
+          el.style.borderColor = '#f59e0b'; // Orange warning
+          setTimeout(() => { el.style.borderColor = ''; }, 3000);
+        }
+      });
+    }
   });
   // Listen to nausea radio buttons
   $$('input[name="nausea"]').forEach(radio=>radio.addEventListener("change",()=>{ readInputsToState(); renderPrintDoc(); saveAll(); }));
@@ -1281,6 +1654,44 @@ function initButtons(){
     setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 500);
     snack(`Export: ${fname}`,'ok');
   });
+  // Export medication list as Excel (CSV format)
+  $("#exportExcel")?.addEventListener("click", ()=>{
+    if(meds.length === 0){
+      snack('ไม่มีรายการยา', 'warn');
+      return;
+    }
+
+    // Create CSV content
+    let csv = 'ลำดับ,ชื่อยา,วิธีใช้,จำนวน,หมายเหตุ\n';
+    meds.forEach((m, i) => {
+      const name = (m.name || '').replace(/"/g, '""'); // Escape quotes
+      const use = (m.use || m.doseText || '').replace(/"/g, '""');
+      const qty = m.qty || '';
+      const type = m.orderType === 'prn' ? 'PRN' : '';
+
+      csv += `${i+1},"${name}","${use}","${qty}","${type}"\n`;
+    });
+
+    // Add UTF-8 BOM for Excel to recognize Thai characters
+    const bom = '\uFEFF';
+    const blob = new Blob([bom + csv], {type:'text/csv;charset=utf-8'});
+
+    const hn = (state.pHN||'').trim() || 'NOHN';
+    const nm = (state.pName||'').trim() || 'NONAME';
+    const fname = `รายการยา_${hn}_${nm}.csv`
+      .replace(/[\\/:*?"<>|]/g,'_')
+      .replace(/\s{2,}/g,' ')
+      .trim();
+
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = fname;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 500);
+    snack(`Export Excel: ${fname}`,'ok');
+  });
+
   $("#importData")?.addEventListener("click", ()=>{ $("#importFile")?.click(); });
   $("#importFile")?.addEventListener("change", (e)=>{
     const f = e.target.files && e.target.files[0];
@@ -1424,6 +1835,52 @@ function initFentanylConv(){
   });
 }
 
+// ---------- Auto-format Input Helpers ----------
+// Format Thai National ID: X-XXXX-XXXXX-XX-X
+function formatThaiID(value){
+  const cleaned = value.replace(/[^0-9]/g, '');
+  if(cleaned.length === 0) return '';
+  if(cleaned.length <= 1) return cleaned;
+  if(cleaned.length <= 5) return cleaned.slice(0,1) + '-' + cleaned.slice(1);
+  if(cleaned.length <= 10) return cleaned.slice(0,1) + '-' + cleaned.slice(1,5) + '-' + cleaned.slice(5);
+  if(cleaned.length <= 12) return cleaned.slice(0,1) + '-' + cleaned.slice(1,5) + '-' + cleaned.slice(5,10) + '-' + cleaned.slice(10);
+  return cleaned.slice(0,1) + '-' + cleaned.slice(1,5) + '-' + cleaned.slice(5,10) + '-' + cleaned.slice(10,12) + '-' + cleaned.slice(12,13);
+}
+
+// Format Thai phone: 0XX-XXXXXXX
+function formatThaiPhone(value){
+  const cleaned = value.replace(/[^0-9]/g, '');
+  if(cleaned.length === 0) return '';
+  if(cleaned.length <= 3) return cleaned;
+  return cleaned.slice(0,3) + '-' + cleaned.slice(3,10);
+}
+
+function initAutoFormat(){
+  // Thai National ID formatting
+  const cidInput = document.getElementById('pCID');
+  if(cidInput){
+    cidInput.addEventListener('input', function(e){
+      const cursorPos = e.target.selectionStart;
+      const oldValue = e.target.value;
+      const formatted = formatThaiID(oldValue);
+      e.target.value = formatted;
+      // Adjust cursor position
+      if(formatted.length > oldValue.length && cursorPos === oldValue.length){
+        e.target.setSelectionRange(formatted.length, formatted.length);
+      }
+    });
+  }
+
+  // Follow-up phone formatting
+  const fuTelInput = document.getElementById('fuTel');
+  if(fuTelInput){
+    fuTelInput.addEventListener('input', function(e){
+      const formatted = formatThaiPhone(e.target.value);
+      e.target.value = formatted;
+    });
+  }
+}
+
 // ---------- Hydrate / Boot ----------
 function hydrate(){
   if(loadAll()){ renderStateToInputs(); renderMeds(); }
@@ -1440,6 +1897,7 @@ window.addEventListener("DOMContentLoaded", ()=>{
   initOrderTypeSwitcher();
   initOrderUI();
   initMixUI();
+  initAutoFormat();
   // Calculator removed
   initFentanylConv();
   safetyChecks();
