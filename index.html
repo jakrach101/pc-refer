@@ -12,7 +12,7 @@
   <body>
     <header>
       <h1>ใบส่งตัว Palliative Care</h1>
-      <p class="sub">MVP v1 — ทำงานในเบราว์เซอร์ ไม่ต้องติดตั้ง</p>
+      <p class="sub">MVP v1 — ทำงานในเบราว์เซอร์ ไม่ต้องติดตั้ง <span id="saveStatus" class="save-status"></span></p>
     </header>
     <main>
       <section class="card">
@@ -44,11 +44,11 @@
       <section class="card">
         <h2>ข้อมูลผู้ป่วย</h2>
         <div class="grid">
-          <label>ชื่อ-สกุล <input id="pName" /></label>
-          <label>อายุ (ปี) <input id="pAge" type="number" min="0" /></label>
-          <label>HN <input id="pHN" /></label>
-          <label>เลขบัตรประชาชน <input id="pCID" /></label>
-          <label class="span-2">ที่อยู่ <input id="pAddress" /></label>
+          <label>ชื่อ-สกุล <input id="pName" aria-label="ชื่อ-นามสกุลผู้ป่วย" /></label>
+          <label>อายุ (ปี) <input id="pAge" type="number" min="0" aria-label="อายุผู้ป่วยเป็นปี" aria-describedby="age-hint" /></label>
+          <label>HN <input id="pHN" aria-label="Hospital Number" /></label>
+          <label>เลขบัตรประชาชน <input id="pCID" aria-label="เลขบัตรประชาชน 13 หลัก" maxlength="17" /></label>
+          <label class="span-2">ที่อยู่ <input id="pAddress" aria-label="ที่อยู่ผู้ป่วย" /></label>
         </div>
         <div>
           <h3 style="margin:12px 0 8px 2px;font-size:16px">ผู้ดูแล <span class="muted" style="font-size:13px">(คนแรก = ผู้ดูแลหลัก)</span></h3>
@@ -100,11 +100,11 @@
       <section class="card">
         <h2>ข้อมูลทางการแพทย์</h2>
         <div class="grid">
-          <label class="span-2">Diagnosis <input id="dx" /></label>
-          <label>PPS (%) <input id="pps" type="number" min="10" max="100" step="10" /></label>
-          <label>GFR (mL/min/1.73m²) <input id="gfr" type="number" min="0" max="200" step="1" placeholder="eGFR (mL/min/1.73m²)" /></label>
-          <label>Hct (%) <input id="hct" type="number" min="0" max="100" /></label>
-          <label>Alb (g/dL) <input id="alb" type="number" step="0.1" /></label>
+          <label class="span-2">Diagnosis <input id="dx" aria-label="การวินิจฉัยโรค" /></label>
+          <label>PPS (%) <input id="pps" type="number" min="10" max="100" step="10" aria-label="Palliative Performance Scale เปอร์เซ็นต์" /></label>
+          <label>GFR (mL/min/1.73m²) <input id="gfr" type="number" min="0" max="200" step="1" placeholder="eGFR (mL/min/1.73m²)" aria-label="Glomerular Filtration Rate" /></label>
+          <label>Hct (%) <input id="hct" type="number" min="0" max="100" aria-label="Hematocrit เปอร์เซ็นต์" /></label>
+          <label>Alb (g/dL) <input id="alb" type="number" step="0.1" aria-label="Albumin กรัมต่อเดซิลิตร" /></label>
         </div>
         <div class="grid">
           <label>Metastasis</label>
@@ -129,14 +129,14 @@
       <section class="card">
         <h2>Symptoms & Vital signs</h2>
         <div class="grid">
-          <label>ปวดบริเวณ <input id="painSite" /></label>
-          <label>คะแนนปวด (PS) <input id="painScore" type="number" min="0" max="10" /></label>
-          <label>Dyspnea score <input id="dyspneaScore" type="number" min="0" max="10" /></label>
-          <label>SpO2 (%) <input id="spo2" type="number" min="0" max="100" /></label>
-          <label>RR (ครั้ง/นาที) <input id="vsRR" type="number" min="0" /></label>
-          <label>BP (mmHg) <input id="bp" placeholder="เช่น 120/80" /></label>
-          <label>HR (ครั้ง/นาที) <input id="hr" type="number" min="0" /></label>
-          <label>GCS <input id="gcs" placeholder="เช่น E4V5M6" /></label>
+          <label>ปวดบริเวณ <input id="painSite" aria-label="บริเวณที่ปวด" /></label>
+          <label>คะแนนปวด (PS) <input id="painScore" type="number" min="0" max="10" aria-label="Pain Score 0-10" /></label>
+          <label>Dyspnea score <input id="dyspneaScore" type="number" min="0" max="10" aria-label="Dyspnea Score 0-10" /></label>
+          <label>SpO2 (%) <input id="spo2" type="number" min="0" max="100" aria-label="Oxygen Saturation เปอร์เซ็นต์" /></label>
+          <label>RR (ครั้ง/นาที) <input id="vsRR" type="number" min="0" aria-label="Respiratory Rate ครั้งต่อนาที" /></label>
+          <label>BP (mmHg) <input id="bp" placeholder="เช่น 120/80" aria-label="Blood Pressure" /></label>
+          <label>HR (ครั้ง/นาที) <input id="hr" type="number" min="0" aria-label="Heart Rate ครั้งต่อนาที" /></label>
+          <label>GCS <input id="gcs" placeholder="เช่น E4V5M6" aria-label="Glasgow Coma Scale" /></label>
           <label>คลื่นไส้/อาเจียน</label>
           <div id="nauseaChips" class="chips span-2">
             <label><input type="radio" name="nausea" value="มี"> มี</label>
@@ -159,15 +159,62 @@
         </div>
 
         <div id="singleOrder">
-          <div class="row">
-            <input id="drugName" class="grow" placeholder="ชื่อยา" list="formulary" />
-            <input id="dose" type="number" min="0" step="0.5" placeholder="ขนาด (เช่น 1, 2.5, 3)" />
-            <input id="freq" class="grow" placeholder="ความถี่ (ระบบจะเดาให้)" list="freqList" />
-            <input id="qty" type="number" min="0" step="1" placeholder="จำนวน (เช่น 10)" />
-            <button id="addOne" type="button">+ เพิ่ม</button>
-            <button id="clearOne" type="button">ล้าง</button>
+          <div class="med-order-form">
+            <!-- Main Input Row -->
+            <div class="med-input-row">
+              <div class="med-field med-field-grow">
+                <label class="med-label">ชื่อยา</label>
+                <input id="drugName" placeholder="เช่น MST 30 mg/tab" list="formulary" />
+              </div>
+
+              <div class="med-field">
+                <label class="med-label">จำนวนต่อครั้ง</label>
+                <input id="dose" type="number" min="0" step="0.5" placeholder="1" />
+              </div>
+
+              <div class="med-field med-field-grow">
+                <label class="med-label">ความถี่</label>
+                <input id="freq" placeholder="q12h, bid, tid" list="freqList" />
+              </div>
+
+              <div class="med-field med-field-qty">
+                <label class="med-label">จำนวน</label>
+                <div class="qty-input-wrapper">
+                  <input id="qty" type="number" min="0" step="1" placeholder="จำนวน" required />
+                  <span class="qty-calc-icon" id="showCalc" title="คำนวณจากจำนวนวัน">🧮</span>
+                </div>
+              </div>
+
+              <div class="med-actions">
+                <button id="addOne" type="button" class="btn-add">เพิ่มยา</button>
+                <button id="clearOne" type="button" class="btn-clear">ล้าง</button>
+              </div>
+            </div>
+
+            <!-- Calculator Panel (แสดงเมื่อคลิก 🧮) -->
+            <div id="calcPanel" class="calc-panel hidden">
+              <div class="calc-panel-header">
+                <span class="calc-panel-title">🧮 คำนวณจำนวนยา</span>
+                <button id="closeCalc" class="calc-close">✕</button>
+              </div>
+              <div class="calc-panel-body">
+                <div class="calc-row">
+                  <span class="calc-info">จำนวนต่อครั้ง: <strong id="calcDoseDisplay">-</strong></span>
+                  <span class="calc-separator">×</span>
+                  <span class="calc-info">ความถี่: <strong id="calcFreqDisplay">-</strong></span>
+                  <span class="calc-separator">×</span>
+                  <input id="medDuration" type="number" min="1" max="365" placeholder="จำนวนวัน" class="calc-days-input" />
+                  <span class="calc-info">วัน</span>
+                  <button id="calcMedQty" type="button" class="btn-calc">คำนวณ</button>
+                </div>
+                <div id="calcResultRow" class="calc-result-row hidden">
+                  <span class="calc-result-text">ผลลัพธ์: <strong id="calcResultValue">-</strong></span>
+                  <button id="applyCalcResult" type="button" class="btn-apply-calc">✓ ใช้ค่านี้</button>
+                </div>
+              </div>
+            </div>
           </div>
-          <p class="hint">Tip: พิมพ์ชื่อยา → ใส่ตัวเลขในช่องขนาด → ระบบจะเดา frequency ให้เป็น placeholder และรายการให้เลือก</p>
+
           <datalist id="formulary"></datalist>
           <datalist id="freqList"></datalist>
         </div>
@@ -236,6 +283,7 @@
         <button id="previewBtn" type="button">แสดงตัวอย่าง PDF</button>
         <button id="exportPdf" type="button">Export PDF</button>
         <button id="exportData" type="button">Export ข้อมูล (.json)</button>
+        <button id="exportExcel" type="button">Export รายการยา (Excel)</button>
         <button id="importData" type="button">Import ข้อมูล (.json)</button>
         <button id="openDrive" type="button">เปิดโฟลเดอร์ Drive</button>
         <input id="importFile" type="file" accept="application/json,.json" style="display:none" />
@@ -358,5 +406,6 @@
     <!-- html2pdf for PDF export -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-YcsIPnp8nTKpWsyQufgqKp5r9mS1ANVmX8p1c+5f5m1tGqVf9y2o8aLVYF0i9T6Yg1n9lVfX8u5z6xq1F6s5Mg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="app.js"></script>
+    <script src="med-calculator.js"></script>
   </body>
   </html>
