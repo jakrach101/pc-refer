@@ -5,6 +5,7 @@
 
 const $ = (s)=>document.querySelector(s);
 const $$ = (s)=>Array.from(document.querySelectorAll(s));
+const IS_SAFARI = /^((?!chrome|android).)*safari/i.test(navigator.userAgent || '');
 const snack=(m,t="info")=>{const e=$("#snack"); if(!e) return; e.textContent=m; e.className=t; e.style.opacity=1; setTimeout(()=>e.style.opacity=0,2500);};
 const todayISO=()=>new Date().toISOString().slice(0,10);
 
@@ -16,6 +17,9 @@ const debounce = (func, delay) => {
     timeoutId = setTimeout(() => func.apply(this, args), delay);
   };
 };
+
+let isPrinting = false;
+let lastFitScale = 1;
 
 // XSS Protection - Escape HTML entities to prevent script injection
 const escapeHTML = (str) => {
@@ -30,6 +34,7 @@ const escapeHTML = (str) => {
 
 // Dynamic fit to one page function
 function applyFitToOnePage() {
+  if(isPrinting) return;
   const printDoc = document.getElementById('printDoc');
   if (!printDoc) return;
 
@@ -46,10 +51,12 @@ function applyFitToOnePage() {
     // Apply scale
     printDoc.style.transform = `scale(${scale})`;
     printDoc.style.marginBottom = `${(contentHeight * scale - contentHeight)}px`;
+    lastFitScale = scale;
   } else {
     // Reset transform
     printDoc.style.transform = '';
     printDoc.style.marginBottom = '';
+    lastFitScale = 1;
   }
 }
 
@@ -907,16 +914,19 @@ function buildPrintHTML(){
   `;
 }
 
-function renderPrintDoc(){
-  const el=document.getElementById('printDoc'); if(!el) return;
+function renderPrintDoc(options = {}){
+  const { immediate = false } = options;
+  const el=document.getElementById('printDoc');
+  if(!el) return Promise.resolve();
 
-  // Show loading state
-  showPreviewLoading();
+  if(!immediate){
+    // Show loading state only for interactive preview rendering
+    showPreviewLoading();
+  }
 
   syncCarePrimaryToState();
 
-  // Small delay to show loading animation
-  setTimeout(() => {
+  const render = () => {
     el.innerHTML = buildPrintHTML();
 
     // footer content
@@ -926,14 +936,114 @@ function renderPrintDoc(){
     // Calculate and update page estimate (debounced)
     debouncedUpdatePageEstimate();
 
-    // Apply fit-to-one-page scaling if enabled
+    // Apply fit-to-one-page scaling if enabled (also resets when toggled off)
     if (typeof applyFitToOnePage === 'function') {
-      setTimeout(applyFitToOnePage, 100);
+      if(immediate){
+        requestAnimationFrame(applyFitToOnePage);
+      } else {
+        setTimeout(applyFitToOnePage, 100);
+      }
     }
 
-    // Show preview content
+    // Reveal preview content state
     showPreviewContent();
-  }, 300);
+  };
+
+  return new Promise(resolve => {
+    const run = () => {
+      render();
+      resolve();
+    };
+
+    if(immediate){
+      run();
+    } else {
+      // Keep slight delay for smoother UX when updating preview
+      setTimeout(run, 300);
+    }
+  });
+}
+
+function collectHeadMarkup(){
+  const nodes = Array.from(document.head.querySelectorAll('link[rel="stylesheet"], link[rel="preconnect"], style'));
+  return nodes.map(node=>node.outerHTML).join('\n');
+}
+
+async function printWithIframe({ fitOnePage } = {}){
+  const source = document.getElementById('printDoc');
+  if(!source) return;
+
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'fixed';
+  iframe.style.right = '0';
+  iframe.style.bottom = '0';
+  iframe.style.width = '0';
+  iframe.style.height = '0';
+  iframe.style.opacity = '0';
+  iframe.style.pointerEvents = 'none';
+  iframe.setAttribute('aria-hidden', 'true');
+  document.body.appendChild(iframe);
+
+  const headMarkup = collectHeadMarkup();
+  const doc = iframe.contentDocument || iframe.contentWindow.document;
+  const bodyClasses = [fitOnePage ? 'fit-one-page' : '', IS_SAFARI ? 'is-safari' : ''].filter(Boolean).join(' ');
+  doc.open();
+  doc.write(`<!doctype html><html lang="th"><head><meta charset="utf-8" />${headMarkup}</head><body${bodyClasses ? ` class="${bodyClasses}"` : ''}><div id="printMount"></div></body></html>`);
+  doc.close();
+
+  // Sync custom properties defined on :root
+  doc.documentElement.style.cssText = document.documentElement.style.cssText;
+
+  // Wait until iframe content is ready
+  await new Promise(resolve => {
+    let done = false;
+    const finish = () => {
+      if(done) return;
+      done = true;
+      resolve();
+    };
+    if(doc.readyState === 'complete'){
+      finish();
+    } else {
+      iframe.addEventListener('load', finish, { once:true });
+      setTimeout(finish, 150);
+    }
+  });
+
+  const mount = doc.getElementById('printMount') || doc.body;
+  mount.innerHTML = '';
+
+  const clone = source.cloneNode(true);
+  clone.style.transform = '';
+  clone.style.marginBottom = '';
+  if(fitOnePage && lastFitScale && lastFitScale < 1){
+    clone.style.zoom = String(lastFitScale);
+  } else {
+    clone.style.zoom = '';
+  }
+  mount.appendChild(clone);
+
+  // Wait for fonts/layout to settle
+  if(doc.fonts && doc.fonts.ready){
+    try { await doc.fonts.ready; } catch(_){}
+  }
+  await new Promise(res => requestAnimationFrame(() => requestAnimationFrame(res)));
+
+  return new Promise(resolve => {
+    const cleanup = () => {
+      try{ iframe.remove(); }catch(_){ /* ignore */ }
+      resolve();
+    };
+    const win = iframe.contentWindow;
+    if(win){
+      win.addEventListener('afterprint', cleanup, { once:true });
+      setTimeout(cleanup, 1500);
+      win.focus();
+      win.print();
+    } else {
+      cleanup();
+    }
+  });
 }
 
 // Debounced version of updatePageEstimate for better performance
@@ -2132,19 +2242,51 @@ function initButtons(){
     }, 100);
     snack('กำลังสร้างตัวอย่าง PDF...','info');
   });
-  $("#exportPdf")?.addEventListener("click", ()=>{
+  $("#exportPdf")?.addEventListener("click", async ()=>{
     // Print in-place using the current page (no popup)
-    readInputsToState(); renderPrintDoc();
-    // Apply fit-one-page class to body for consistent CSS-based scaling
-    const fit = document.getElementById('fitOnePage')?.checked;
-    if(fit){
-      document.body.classList.add('fit-one-page');
-    } else {
-      document.body.classList.remove('fit-one-page');
+    readInputsToState();
+    await renderPrintDoc({ immediate:true });
+
+    const fit = !!document.getElementById('fitOnePage')?.checked;
+    state.fitOnePage = fit;
+    document.body.classList.toggle('fit-one-page', fit);
+
+    // Ensure layout and scaling are up to date before cloning/printing
+    await new Promise(res => requestAnimationFrame(() => {
+      try { applyFitToOnePage(); } catch(_){}
+      res();
+    }));
+
+    if(IS_SAFARI){
+      try{
+        await printWithIframe({ fitOnePage: fit });
+      } finally {
+        document.body.classList.remove('fit-one-page');
+        if(state.fitOnePage){
+          document.body.classList.add('fit-one-page');
+          requestAnimationFrame(()=>{ try{ applyFitToOnePage(); }catch(_){} });
+        }
+      }
+      return;
     }
-    const cleanup = ()=>{ document.body.classList.remove('fit-one-page'); };
+
+    const cleanup = ()=>{
+      document.body.classList.remove('fit-one-page');
+      if(isPrinting){
+        isPrinting = false;
+        if(state.fitOnePage){
+          document.body.classList.add('fit-one-page');
+          requestAnimationFrame(()=>{ try{ applyFitToOnePage(); }catch(_){} });
+        }
+      }
+    };
+
     if('onafterprint' in window){ window.addEventListener('afterprint', cleanup, { once:true }); }
     setTimeout(cleanup, 2000);
+
+    isPrinting = true;
+    // Allow layout to flush before printing
+    await new Promise(res => requestAnimationFrame(() => requestAnimationFrame(res)));
     window.print();
   });
 
@@ -2645,6 +2787,7 @@ function initStepNavigation() {
 }
 
 window.addEventListener("DOMContentLoaded", ()=>{
+  if(IS_SAFARI){ document.body?.classList.add('is-safari'); }
   hydrate(); initInputs(); initCaregiversUI(); initButtons();
   initOrderTypeSwitcher();
   initOrderUI();
