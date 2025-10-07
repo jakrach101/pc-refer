@@ -14,9 +14,38 @@
       <h1>ใบส่งตัว Palliative Care</h1>
       <p class="sub">MVP v1 — ทำงานในเบราว์เซอร์ ไม่ต้องติดตั้ง <span id="saveStatus" class="save-status"></span></p>
     </header>
+
+    <!-- Progress Navigation -->
+    <nav class="progress-nav" id="progressNav">
+      <div class="progress-steps">
+        <button class="step-btn active" data-step="1" type="button">
+          <span class="step-number">1</span>
+          <span class="step-label">ข้อมูลพื้นฐาน</span>
+        </button>
+        <button class="step-btn" data-step="2" type="button">
+          <span class="step-number">2</span>
+          <span class="step-label">การดูแล & ACP</span>
+        </button>
+        <button class="step-btn" data-step="3" type="button">
+          <span class="step-number">3</span>
+          <span class="step-label">ข้อมูลทางการแพทย์</span>
+        </button>
+        <button class="step-btn" data-step="4" type="button">
+          <span class="step-number">4</span>
+          <span class="step-label">แผนยา & Tools</span>
+        </button>
+        <button class="step-btn" data-step="5" type="button">
+          <span class="step-number">5</span>
+          <span class="step-label">Preview & Export</span>
+        </button>
+      </div>
+    </nav>
+
     <main>
-      <section class="card">
-        <h2>สถานพยาบาล & วันที่</h2>
+      <!-- Step 1: ข้อมูลพื้นฐาน -->
+      <div class="step-container active" data-step="1">
+        <section class="card">
+          <h2>สถานพยาบาล & วันที่</h2>
         <div class="grid">
           <label>
             หน่วยงานต้นทาง
@@ -56,7 +85,11 @@
           <button id="addCaregiver" type="button" class="small" style="margin-top:8px">+ เพิ่มผู้ดูแล</button>
         </div>
       </section>
+      </div>
+      <!-- End Step 1 -->
 
+      <!-- Step 2: การดูแล & ACP -->
+      <div class="step-container" data-step="2">
       <section class="card">
         <h2>วัตถุประสงค์การส่งต่อ</h2>
         <div id="purposeChips" class="chips">
@@ -96,7 +129,11 @@
           <label class="span-2">Conspiracy of silence <input id="conspiracy" placeholder="ตัวอย่าง: มี/ไม่มี + รายละเอียด" /></label>
         </div>
       </section>
+      </div>
+      <!-- End Step 2 -->
 
+      <!-- Step 3: ข้อมูลทางการแพทย์ -->
+      <div class="step-container" data-step="3">
       <section class="card">
         <h2>ข้อมูลทางการแพทย์</h2>
         <div class="grid">
@@ -145,14 +182,17 @@
           <label class="span-2">อาการอื่นๆ <input id="others" /></label>
         </div>
       </section>
+      </div>
+      <!-- End Step 3 -->
 
+      <!-- Step 4: แผนยา & Tools -->
+      <div class="step-container" data-step="4">
       <section class="card">
         <h2>แผนยา / อุปกรณ์</h2>
         <div class="row">
           <label class="muted">Type</label>
           <div id="orderTypeChips" class="chips">
             <label><input type="radio" name="orderType" value="po" checked> PO/SL</label>
-            <label><input type="radio" name="orderType" value="po_prn"> PO/SL PRN</label>
             <label><input type="radio" name="orderType" value="inj_prn"> Inject PRN</label>
             <label><input type="radio" name="orderType" value="inf"> Infusion</label>
           </div>
@@ -162,7 +202,7 @@
           <div class="med-order-form">
             <!-- Main Input Row -->
             <div class="med-input-row">
-              <div class="med-field med-field-grow">
+              <div class="med-field med-field-drug">
                 <label class="med-label">ชื่อยา</label>
                 <input id="drugName" placeholder="เช่น MST 30 mg/tab" list="formulary" />
               </div>
@@ -283,17 +323,69 @@
         </div>
       </section>
 
-      <section class="actions">
-        <button id="copyHis" type="button">Copy HIS Note</button>
-        <button id="previewBtn" type="button">แสดงตัวอย่าง PDF</button>
-        <button id="exportPdf" type="button">Export PDF</button>
-        <button id="exportData" type="button">Export ข้อมูล (.json)</button>
-        <button id="exportExcel" type="button">Export รายการยา (Excel)</button>
-        <button id="importData" type="button">Import ข้อมูล (.json)</button>
-        <button id="openDrive" type="button">เปิดโฟลเดอร์ Drive</button>
-        <button id="togglePrintSettings" type="button">⚙️ ตั้งค่าการพิมพ์</button>
+      <section class="card">
+        <h2>ผู้บันทึก</h2>
+        <div class="grid">
+          <label>ชื่อผู้บันทึก <input id="recorderName" placeholder="เช่น นพ.สมชาย ใจดี" list="recorderList" /></label>
+          <label>โทรศัพท์ <input id="recorderTel" placeholder="เช่น 081-234-5678" /></label>
+          <label>วันที่บันทึก <input id="recordDate" type="date" /></label>
+        </div>
+        <datalist id="recorderList">
+          <option value="พว.วรินทร์ทิพย์">064-9081365</option>
+          <option value="พญ.ลลิดา"></option>
+          <option value="พญ.นัฐยา"></option>
+          <option value="พญ.พัชนุ"></option>
+          <option value="นพ.จักราช"></option>
+        </datalist>
+      </section>
+      </div>
+      <!-- End Step 4 -->
+
+      <!-- Step 5: Preview & Export -->
+      <div class="step-container" data-step="5">
+      <section class="actions-container">
+        <h2 class="actions-title">Preview & Export</h2>
+
+        <div class="action-buttons-compact">
+          <button id="previewBtn" type="button" class="btn-action btn-primary">
+            <span class="btn-icon">👁️</span>
+            <span class="btn-text">แสดงตัวอย่าง PDF</span>
+          </button>
+          <button id="exportPdf" type="button" class="btn-action btn-primary">
+            <span class="btn-icon">🖨️</span>
+            <span class="btn-text">Print PDF</span>
+          </button>
+          <button id="copyHis" type="button" class="btn-action btn-secondary">
+            <span class="btn-icon">📋</span>
+            <span class="btn-text">Copy HIS Note</span>
+          </button>
+          <button id="exportData" type="button" class="btn-action btn-secondary">
+            <span class="btn-icon">📦</span>
+            <span class="btn-text">Export (.json)</span>
+          </button>
+          <button id="exportExcel" type="button" class="btn-action btn-secondary">
+            <span class="btn-icon">📊</span>
+            <span class="btn-text">Export Excel</span>
+          </button>
+          <button id="importData" type="button" class="btn-action btn-utility">
+            <span class="btn-icon">📥</span>
+            <span class="btn-text">Import</span>
+          </button>
+          <button id="togglePrintSettings" type="button" class="btn-action btn-utility">
+            <span class="btn-icon">⚙️</span>
+            <span class="btn-text">ตั้งค่าการพิมพ์</span>
+          </button>
+          <button id="openDrive" type="button" class="btn-action btn-utility">
+            <span class="btn-icon">📂</span>
+            <span class="btn-text">เปิด Drive</span>
+          </button>
+          <button id="clearAll" type="button" class="btn-action btn-danger">
+            <span class="btn-icon">🗑️</span>
+            <span class="btn-text">ล้างข้อมูล <small>(ไม่สามารถย้อนกลับ)</small></span>
+          </button>
+        </div>
+
         <input id="importFile" type="file" accept="application/json,.json" style="display:none" />
-        <button id="clearAll" class="danger" type="button">ล้างทั้งหมด</button>
       </section>
 
       <!-- Print Settings Panel -->
@@ -322,8 +414,8 @@
               </label>
 
               <label class="settings-label">
-                <span>Font Size <span class="settings-value" id="printSizeValue">16pt</span></span>
-                <input id="printSize" type="range" min="4" max="20" step="0.5" value="16" class="settings-slider" />
+                <span>Font Size <span class="settings-value" id="printSizeValue">12pt</span></span>
+                <input id="printSize" type="range" min="4" max="20" step="0.5" value="12" class="settings-slider" />
               </label>
 
               <label class="settings-label">
@@ -394,79 +486,71 @@
         <pre id="hisText"></pre>
       </section>
 
-      <section id="printDoc" class="card pdf">
-        <div id="pageEstimate" class="page-estimate"></div>
-        <div class="print-header">
-          <img src="logo.png" class="logo" alt="logo" />
-          <div class="heading"><h2>ใบส่งตัวผู้ป่วย Palliative Care</h2></div>
-        </div>
-        <div class="pdf-meta">
-          <div class="kv">
-            <div class="k">หน่วยงานต้นทาง</div>
-            <div class="v"><span data-bind="fromFacility"></span></div>
-            <div class="k">ปลายทาง</div>
-            <div class="v"><ul id="pdfToList" class="ul-compact"></ul></div>
-            <div class="k">วันที่ส่งต่อ</div>
-            <div class="v"><span data-bind="refDate"></span></div>
+      <!-- PDF Preview Section (unified with print document) -->
+      <section id="previewSection" class="card preview-container">
+        <div class="preview-header">
+          <div class="preview-title">
+            <h2>📄 ตัวอย่าง PDF</h2>
+          </div>
+          <div class="preview-controls">
+            <button id="zoomOut" type="button" class="zoom-btn" title="ซูมออก">−</button>
+            <span id="zoomLevel" class="zoom-level">100%</span>
+            <button id="zoomIn" type="button" class="zoom-btn" title="ซูมเข้า">+</button>
+            <button id="resetZoom" type="button" class="zoom-btn-reset" title="รีเซ็ตซูม">⟲</button>
           </div>
         </div>
-        <div id="printFooter"><span class="printed"></span><span class="pgn"></span></div>
-        <div class="pdf-cols">
-          <div class="col">
-            <div class="pdf-section">
-              <h3>ข้อมูลผู้ป่วย</h3>
-              <div class="kv">
-                <div class="k">ชื่อ-สกุล</div><div class="v"><span data-bind="pName"></span></div>
-                <div class="k">อายุ</div><div class="v"><span data-bind="pAge"></span> ปี</div>
-                <div class="k">HN</div><div class="v"><span data-bind="pHN"></span></div>
-                <div class="k">เลขบัตร</div><div class="v"><span data-bind="pCID"></span></div>
-                <div class="k">ที่อยู่</div><div class="v"><span data-bind="pAddress"></span></div>
-                <div class="k">ผู้ดูแลหลัก</div><div class="v"><span data-bind="careName"></span> (ความสัมพันธ์: <span data-bind="careRelation"></span>, โทร: <span data-bind="careTel"></span>)</div>
-              </div>
-            </div>
-            <div class="pdf-section">
-              <h3>วัตถุประสงค์ & ACP</h3>
-              <p>วัตถุประสงค์: <span data-bind="purposeList"></span></p>
-              <p>ACP: <span data-bind="acpList"></span></p>
-            </div>
+
+        <!-- Empty State -->
+        <div id="previewEmptyState" class="preview-empty-state">
+          <div class="empty-state-icon">📄</div>
+          <h3>ยังไม่มีตัวอย่าง PDF</h3>
+          <p>กดปุ่ม <strong>"แสดงตัวอย่าง PDF"</strong> ด้านล่างเพื่อดูเอกสาร</p>
+        </div>
+
+        <!-- Loading State -->
+        <div id="previewLoadingState" class="preview-loading-state hidden">
+          <div class="loading-spinner"></div>
+          <p>กำลังสร้างตัวอย่าง PDF...</p>
+        </div>
+
+        <!-- Preview Wrapper -->
+        <div id="previewWrapper" class="preview-wrapper hidden">
+          <!-- Page Estimate Badge (moved here from header) -->
+          <div id="pageEstimate" class="page-estimate-badge"></div>
+
+          <div class="scroll-indicator" id="scrollIndicator">
+            <span>⬇</span> เลื่อนลงเพื่อดูเพิ่มเติม
           </div>
-          <div class="col">
-            <div class="pdf-section">
-              <h3>จิตสังคม–จิตวิญญาณ</h3>
-              <p>ผู้รับทราบ: <span data-bind="informedBy"></span> | การอยู่อาศัย: <span data-bind="living"></span></p>
-              <p>ความต้องการ/ห่วงกังวล: <span data-bind="concerns"></span></p>
-              <p id="pdfLinePerPatient">Perception (ผู้ป่วย): <span data-bind="perceptionPatient"></span></p>
-              <p id="pdfLinePerFamily">Perception (ญาติ): <span data-bind="perceptionFamily"></span></p>
-              <p id="pdfLineConspiracy">Conspiracy of silence: <span data-bind="conspiracy"></span></p>
-            </div>
-            <div class="pdf-section">
-              <h3>ข้อมูลทางการแพทย์</h3>
-              <p id="pdfLineDx">Dx: <span data-bind="dx"></span> | PPS: <span data-bind="pps"></span>% | GFR: <span data-bind="gfr"></span>% | Hct: <span data-bind="hct"></span>% | Alb: <span data-bind="alb"></span> g/dL</p>
-              <p id="pdfLineSymptoms">อาการ: ปวดบริเวณ <span data-bind="painSite"></span> (PS <span data-bind="painScore"></span>/10); Dyspnea <span data-bind="dyspneaScore"></span>/10 (RR <span data-bind="vsRR"></span>/นาที); คลื่นไส้/อาเจียน: <span data-bind="nausea"></span>; อื่นๆ: <span data-bind="others"></span></p>
-              <p id="pdfLineVS">V/S: BP <span data-bind="bpSys"></span>/<span data-bind="bpDia"></span> mmHg; HR <span data-bind="hr"></span>/นาที</p>
-            </div>
+          <div id="printDoc" class="pdf-document">
+            <!-- PDF content will be rendered here -->
           </div>
-        </div>
-        <div class="pdf-section">
-          <h3>แผนยา</h3>
-          <ul id="pdfMeds"></ul>
-          <p id="pdfTdd" class="muted"></p>
-        </div>
-        <div class="pdf-section">
-          <h3>ติดตาม</h3>
-          <p><span data-bind="fuDate"></span> — <span data-bind="fuSite"></span> (โทร <span data-bind="fuTel"></span>)</p>
-          
-        </div>
-        <div class="pdf-footer">
-          <p>ผู้บันทึก: _____________________________ วันที่: ____________________</p>
         </div>
       </section>
+      </div>
+      <!-- End Step 5 -->
 
       <div id="snack"></div>
+
+      <!-- Confirmation Modal -->
+      <div id="confirmModal" class="modal-overlay hidden">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3 class="modal-title">⚠️ ยืนยันการดำเนินการ</h3>
+            <button type="button" class="modal-close" id="modalClose">✕</button>
+          </div>
+          <div class="modal-body">
+            <p id="modalMessage">คุณแน่ใจหรือไม่ที่จะดำเนินการต่อ?</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn-modal btn-cancel" id="modalCancel">ยกเลิก</button>
+            <button type="button" class="btn-modal btn-confirm" id="modalConfirm">ยืนยัน</button>
+          </div>
+        </div>
+      </div>
     </main>
 
     <!-- html2pdf for PDF export -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-YcsIPnp8nTKpWsyQufgqKp5r9mS1ANVmX8p1c+5f5m1tGqVf9y2o8aLVYF0i9T6Yg1n9lVfX8u5z6xq1F6s5Mg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.2/html2pdf.bundle.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="app.js"></script>
     <script src="med-calculator.js"></script>
   </body>
