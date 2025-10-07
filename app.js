@@ -131,7 +131,8 @@ const FIELD_IDS=[
   "dx","pps","gfr","hct","alb",
   "painSite","painScore","dyspneaScore","spo2","gcs","others",
   "bp","hr","vsRR","rr",
-  "fuDate","fuSite","fuTel"
+  "fuDate","fuSite","fuTel",
+  "recorderName","recorderTel","recordDate"
 ];
 
 // ---------- Drug dictionary ----------
@@ -159,16 +160,16 @@ const FORMULARY=[
   {name:"Kapanol 20 mg", unit:"cap", route:"PO", packSize:10, packUnit:"แผง", types:["po"]},
   {name:"Methadone", unit:"mg", route:"PO", packSize:null, packUnit:null, types:["po"]},
   {name:"Morphine syrup 10 mg/5 mL", unit:"mL", route:"PO", packSize:60, packUnit:"ขวด", types:["po"]},
-  {name:"Morphine IR 10 mg/tab", unit:"tab", route:"SL", packSize:10, packUnit:"แผง", types:["po_prn"]},
+  {name:"Morphine IR 10 mg/tab", unit:"tab", route:"SL", packSize:10, packUnit:"แผง", types:["po"]},
   {name:"Morphine injection 10 mg/mL (1 amp)", unit:"mg", route:"IV/SC", packSize:1, packUnit:"amp", types:["inj_prn"]},
-  {name:"Fentanyl patch 25 mcg/hr", unit:"patch", route:"patch", packSize:5, packUnit:"กล่อง", types:["po"]},
+  {name:"Fentanyl patch 25 mcg/hr", unit:"patch", route:"TD", packSize:5, packUnit:"กล่อง", types:["po"]},
   {name:"Fentanyl injection 100 mcg/2 mL (1 amp)", unit:"mcg", route:"IV", packSize:1, packUnit:"amp", types:["inj_prn"]},
   {name:"Midazolam", unit:"mg", route:"SC", packSize:1, packUnit:"amp", types:["inj_prn"]},
   {name:"Haloperidol", unit:"mg", route:"SC", packSize:1, packUnit:"amp", types:["inj_prn"]},
-  {name:"Senna", unit:"tab", route:"PO", packSize:100, packUnit:"ขวด", types:["po", "po_prn"]},
-  {name:"Lactulose", unit:"mL", route:"PO", packSize:300, packUnit:"ขวด", types:["po", "po_prn"]},
-  {name:"Atropine 1% eye drops", unit:"หยด", route:"SL", packSize:null, packUnit:null, types:["po_prn"]},
-  {name:"Lorazepam 1 mg", unit:"mg", route:"SL", packSize:10, packUnit:"แผง", types:["po_prn"]},
+  {name:"Senna", unit:"tab", route:"PO", packSize:100, packUnit:"ขวด", types:["po"]},
+  {name:"Lactulose", unit:"mL", route:"PO", packSize:300, packUnit:"ขวด", types:["po"]},
+  {name:"Atropine 1% eye drops", unit:"หยด", route:"SL", packSize:null, packUnit:null, types:["po"]},
+  {name:"Lorazepam 1 mg", unit:"mg", route:"SL", packSize:10, packUnit:"แผง", types:["po"]},
   {name:"Hyoscine butylbromide (Buscopan) injection 20 mg/mL (1 amp)", unit:"mg", route:"IV/SC", packSize:1, packUnit:"amp", types:["inj_prn"]},
 ];
 
@@ -384,7 +385,7 @@ function bindSpans(){
     // map RR: ใช้ vsRR ถ้ามี ไม่งั้น fallback rr
     if(k==="vsRR") { sp.textContent=(state.vsRR??state.rr??"").toString(); return; }
     if(k==="pCID") { sp.textContent = formatThaiCID(state.pCID||""); return; }
-    if(k==="careTel" || k==="fuTel") { sp.textContent = formatPhone(state[k]||""); return; }
+    if(k==="careTel" || k==="fuTel" || k==="recorderTel") { sp.textContent = formatPhone(state[k]||""); return; }
     sp.textContent=(state[k]??"").toString();
   });
   updatePdfToList();
@@ -899,40 +900,40 @@ function buildPrintHTML(){
       <h3>ติดตาม</h3>
       <p>${e(formatThaiDate(get('fuDate')))} — ${e(get('fuSite'))} (โทร ${e(formatPhone(get('fuTel')))})</p>
     </div>
-    <div class="pdf-footer sign"><p class="label">ผู้บันทึก:</p><span class="line"></span><p class="label">วันที่:</p><span class="line"></span></div>
+    <div class="pdf-footer">
+      <p>ผู้บันทึก: ${e(get('recorderName'))} (โทร ${e(formatPhone(get('recorderTel')))}) วันที่: ${e(formatThaiDate(get('recordDate')))}</p>
+    </div>
+    <div id="printFooter"><span class="printed"></span><span class="pgn"></span></div>
   `;
 }
 
 function renderPrintDoc(){
   const el=document.getElementById('printDoc'); if(!el) return;
+
+  // Show loading state
+  showPreviewLoading();
+
   syncCarePrimaryToState();
 
-  // Preserve page estimate div
-  const pageEstDiv = el.querySelector('#pageEstimate');
+  // Small delay to show loading animation
+  setTimeout(() => {
+    el.innerHTML = buildPrintHTML();
 
-  el.innerHTML = buildPrintHTML();
+    // footer content
+    const pf = el.querySelector('#printFooter .printed');
+    if(pf) pf.textContent = 'Printed on ' + new Date().toLocaleString('th-TH', { dateStyle:'medium', timeStyle:'short' });
 
-  // Re-insert page estimate at the top
-  if(pageEstDiv){
-    const firstChild = el.firstChild;
-    if(firstChild){
-      el.insertBefore(pageEstDiv, firstChild);
-    } else {
-      el.appendChild(pageEstDiv);
+    // Calculate and update page estimate (debounced)
+    debouncedUpdatePageEstimate();
+
+    // Apply fit-to-one-page scaling if enabled
+    if (typeof applyFitToOnePage === 'function') {
+      setTimeout(applyFitToOnePage, 100);
     }
-  }
 
-  // footer content
-  const pf = document.querySelector('#printFooter .printed');
-  if(pf) pf.textContent = 'Printed on ' + new Date().toLocaleString('th-TH', { dateStyle:'medium', timeStyle:'short' });
-
-  // Calculate and update page estimate (debounced)
-  debouncedUpdatePageEstimate();
-
-  // Apply fit-to-one-page scaling if enabled
-  if (typeof applyFitToOnePage === 'function') {
-    setTimeout(applyFitToOnePage, 100);
-  }
+    // Show preview content
+    showPreviewContent();
+  }, 300);
 }
 
 // Debounced version of updatePageEstimate for better performance
@@ -982,7 +983,7 @@ function updatePageEstimate(){
     }
 
     estDiv.textContent = message;
-    estDiv.className = `page-estimate ${className}`;
+    estDiv.className = `page-estimate-badge ${className}`;
 
     // Draw page break line if more than 1 page
     if(estimatedPages > 1){
@@ -1493,6 +1494,8 @@ function predictFreq(drugName, doseNum){
   const d=Number(doseNum||0);
   if(/morphine ir|morphine\s+ir/.test(dn)){
     if(d<=5) return ["1/2–1 tab SL PRN q2–4h for breakthrough pain"]; return ["1 tab SL PRN q2–4h for breakthrough pain"]; }
+  if(/morphine.*syrup/.test(dn)){
+    if(d<=5) return ["5 mL PO q4h PRN for pain/dyspnea"]; if(d<=10) return ["10 mL PO q4h PRN for pain/dyspnea"]; return [`${d} mL PO q4h PRN for pain/dyspnea`]; }
   if(/mst/.test(dn)){ if(d<30) return ["1 tab PO q12h"]; return ["1 tab PO q12h","1 tab PO q8–12h"]; }
   if(/kapanol/.test(dn)) return ["1 cap PO q12h"];
   if(/methadone/.test(dn)){
@@ -1763,7 +1766,7 @@ function applyPrintPrefs(){
     'System': "system-ui,-apple-system,'Segoe UI',Roboto,Arial,'Noto Sans Thai','Sarabun','TH Sarabun New',sans-serif"
   };
   const fam = state.printFont || 'TH SarabunPSK';
-  const size = state.printSize || 16;
+  const size = state.printSize || 12;
   const lh = state.printLineHeight || 1.35;
   const width = state.printWidth || 190; // mm
   document.documentElement.style.setProperty('--pdf-font-family', stacks[fam]||stacks['TH SarabunPSK']);
@@ -1810,7 +1813,7 @@ function initPrintPrefsUI(){
 
   // Update display values
   function updateDisplayValues(){
-    if(sizeValue) sizeValue.textContent = (state.printSize || 16) + 'pt';
+    if(sizeValue) sizeValue.textContent = (state.printSize || 12) + 'pt';
     if(lhValue) lhValue.textContent = (state.printLineHeight || 1.35);
     if(widthValue) widthValue.textContent = (state.printWidth || 190) + 'mm';
   }
@@ -1827,7 +1830,7 @@ function initPrintPrefsUI(){
 
   // Font size (range slider)
   if(sizeInp){
-    sizeInp.value = state.printSize || 16;
+    sizeInp.value = state.printSize || 12;
     updateDisplayValues();
     sizeInp.addEventListener('input',()=>{
       const v=+sizeInp.value||16;
@@ -1915,7 +1918,7 @@ function initPrintPrefsUI(){
   if(resetBtn){
     resetBtn.addEventListener('click', ()=>{
       state.printFont = 'TH SarabunPSK';
-      state.printSize = 16;
+      state.printSize = 12;
       state.printLineHeight = 1.35;
       state.printWidth = 190;
       state.fitOnePage = false;
@@ -1951,10 +1954,184 @@ function initPrintPrefsUI(){
 
   applyPrintPrefs();
 }
+
+// Preview state management
+function showPreviewEmpty() {
+  const emptyState = $("#previewEmptyState");
+  const loadingState = $("#previewLoadingState");
+  const wrapper = $("#previewWrapper");
+  const controls = document.querySelector('.preview-controls');
+
+  if(emptyState) emptyState.classList.remove('hidden');
+  if(loadingState) loadingState.classList.add('hidden');
+  if(wrapper) wrapper.classList.add('hidden');
+  if(controls) controls.style.display = 'none';
+}
+
+function showPreviewLoading() {
+  const emptyState = $("#previewEmptyState");
+  const loadingState = $("#previewLoadingState");
+  const wrapper = $("#previewWrapper");
+  const controls = document.querySelector('.preview-controls');
+
+  if(emptyState) emptyState.classList.add('hidden');
+  if(loadingState) loadingState.classList.remove('hidden');
+  if(wrapper) wrapper.classList.add('hidden');
+  if(controls) controls.style.display = 'none';
+}
+
+function showPreviewContent() {
+  const emptyState = $("#previewEmptyState");
+  const loadingState = $("#previewLoadingState");
+  const wrapper = $("#previewWrapper");
+  const controls = document.querySelector('.preview-controls');
+
+  if(emptyState) emptyState.classList.add('hidden');
+  if(loadingState) loadingState.classList.add('hidden');
+  if(wrapper) wrapper.classList.remove('hidden');
+  if(controls) controls.style.display = 'flex';
+
+  // Update scroll indicator
+  updateScrollIndicator();
+}
+
+function updateScrollIndicator() {
+  const wrapper = $("#previewWrapper");
+  const indicator = $("#scrollIndicator");
+  if(!wrapper || !indicator) return;
+
+  const checkScroll = () => {
+    const hasScroll = wrapper.scrollHeight > wrapper.clientHeight;
+    const isAtBottom = wrapper.scrollHeight - wrapper.scrollTop <= wrapper.clientHeight + 50;
+
+    if(hasScroll && !isAtBottom) {
+      indicator.classList.add('visible');
+    } else {
+      indicator.classList.remove('visible');
+    }
+  };
+
+  // Initial check
+  setTimeout(checkScroll, 100);
+
+  // Listen to scroll events
+  wrapper.removeEventListener('scroll', checkScroll); // Remove old listener if exists
+  wrapper.addEventListener('scroll', checkScroll);
+}
+
+// Zoom controls for PDF preview
+function initZoomControls() {
+  const printDoc = $("#printDoc");
+  const zoomInBtn = $("#zoomIn");
+  const zoomOutBtn = $("#zoomOut");
+  const resetZoomBtn = $("#resetZoom");
+  const zoomLevelSpan = $("#zoomLevel");
+
+  let currentZoom = 1.0; // Default 100% (actual size)
+
+  const updateZoom = (zoom) => {
+    currentZoom = Math.max(0.5, Math.min(2.0, zoom)); // Limit between 50% - 200%
+    if(printDoc) {
+      printDoc.style.transform = `scale(${currentZoom})`;
+      printDoc.style.transformOrigin = 'top center';
+      printDoc.style.transition = 'transform 0.2s ease';
+    }
+    if(zoomLevelSpan) {
+      zoomLevelSpan.textContent = `${Math.round(currentZoom * 100)}%`;
+    }
+    // Update scroll indicator after zoom
+    setTimeout(updateScrollIndicator, 300);
+  };
+
+  if(zoomInBtn) {
+    zoomInBtn.addEventListener('click', () => {
+      updateZoom(currentZoom + 0.1);
+    });
+  }
+
+  if(zoomOutBtn) {
+    zoomOutBtn.addEventListener('click', () => {
+      updateZoom(currentZoom - 0.1);
+    });
+  }
+
+  if(resetZoomBtn) {
+    resetZoomBtn.addEventListener('click', () => {
+      updateZoom(1.0); // Reset to 100%
+    });
+  }
+
+  // Initialize
+  updateZoom(currentZoom);
+}
+
+// ========== CONFIRMATION MODAL ==========
+function showConfirmModal(message, onConfirm) {
+  const modal = $("#confirmModal");
+  const modalMessage = $("#modalMessage");
+  const modalConfirm = $("#modalConfirm");
+  const modalCancel = $("#modalCancel");
+  const modalClose = $("#modalClose");
+
+  if (!modal || !modalMessage || !modalConfirm) return;
+
+  // Set message
+  modalMessage.textContent = message;
+
+  // Show modal
+  modal.classList.remove('hidden');
+
+  // Remove old listeners and add new ones
+  const confirmHandler = () => {
+    modal.classList.add('hidden');
+    onConfirm();
+    cleanup();
+  };
+
+  const cancelHandler = () => {
+    modal.classList.add('hidden');
+    cleanup();
+  };
+
+  const cleanup = () => {
+    modalConfirm.removeEventListener('click', confirmHandler);
+    modalCancel?.removeEventListener('click', cancelHandler);
+    modalClose?.removeEventListener('click', cancelHandler);
+    modal.removeEventListener('click', outsideClickHandler);
+    document.removeEventListener('keydown', escapeHandler);
+  };
+
+  const outsideClickHandler = (e) => {
+    if (e.target === modal) {
+      cancelHandler();
+    }
+  };
+
+  const escapeHandler = (e) => {
+    if (e.key === 'Escape') {
+      cancelHandler();
+    }
+  };
+
+  modalConfirm.addEventListener('click', confirmHandler);
+  modalCancel?.addEventListener('click', cancelHandler);
+  modalClose?.addEventListener('click', cancelHandler);
+  modal.addEventListener('click', outsideClickHandler);
+  document.addEventListener('keydown', escapeHandler);
+}
+
 // legacy med actions removed; handled in initOrderUI
 function initButtons(){
   $("#copyHis")?.addEventListener("click", ()=>{ const txt=buildHisNote(); $("#hisText").textContent=txt; navigator.clipboard.writeText(txt).then(()=>snack("คัดลอก HIS Note แล้ว","ok")); });
-  $("#previewBtn")?.addEventListener("click", ()=>{ readInputsToState(); renderPrintDoc(); document.getElementById('printDoc')?.scrollIntoView({behavior:'smooth',block:'center'}); snack('แสดงตัวอย่าง PDF (print layout)','info'); });
+  $("#previewBtn")?.addEventListener("click", ()=>{
+    readInputsToState();
+    renderPrintDoc();
+    // Scroll to preview section
+    setTimeout(() => {
+      document.getElementById('previewSection')?.scrollIntoView({behavior:'smooth',block:'start'});
+    }, 100);
+    snack('กำลังสร้างตัวอย่าง PDF...','info');
+  });
   $("#exportPdf")?.addEventListener("click", ()=>{
     // Print in-place using the current page (no popup)
     readInputsToState(); renderPrintDoc();
@@ -1970,6 +2147,7 @@ function initButtons(){
     setTimeout(cleanup, 2000);
     window.print();
   });
+
   // Export/Import JSON data
   $("#exportData")?.addEventListener("click", ()=>{
     readInputsToState();
@@ -2028,7 +2206,108 @@ function initButtons(){
     snack(`Export Excel: ${fname}`,'ok');
   });
 
-  $("#importData")?.addEventListener("click", ()=>{ $("#importFile")?.click(); });
+  // Import from Google Drive
+  $("#importData")?.addEventListener("click", async ()=>{
+    const FOLDER_ID = "1B2ZrpYjFTve6aypQRXjr4l5Ge2F2j0Wf";
+    const API_KEY = "AIzaSyA8zP023uK9jE2dNu4BDB5V8rqSSo8Fn9M";
+
+    snack('กำลังโหลดรายการไฟล์...', 'info');
+
+    try {
+      const listUrl = `https://www.googleapis.com/drive/v3/files?q='${FOLDER_ID}'+in+parents+and+(mimeType='application/json'+or+name+contains+'.json')&fields=files(id,name,modifiedTime)&orderBy=modifiedTime+desc&key=${API_KEY}`;
+
+      const response = await fetch(listUrl);
+      if (!response.ok) throw new Error(`API Error: ${response.status}`);
+
+      const data = await response.json();
+      const files = data.files || [];
+
+      if (files.length === 0) {
+        snack('ไม่พบไฟล์ .json ในโฟลเดอร์', 'warn');
+        return;
+      }
+
+      // Create file list modal
+      const modal = document.createElement('div');
+      modal.className = 'drive-modal';
+      modal.innerHTML = `
+        <div class="drive-modal-content">
+          <div class="drive-modal-header">
+            <h3>เลือกไฟล์จาก Google Drive</h3>
+            <button class="drive-modal-close">✕</button>
+          </div>
+          <div class="drive-search-box">
+            <input type="text" class="drive-search-input" placeholder="🔍 ค้นหาไฟล์... (HN, ชื่อ-นามสกุล)" />
+          </div>
+          <div class="drive-file-list">
+            ${files.map(f => `
+              <div class="drive-file-item" data-file-id="${f.id}" data-file-name="${f.name.toLowerCase()}">
+                <span class="drive-file-name">📄 ${f.name}</span>
+                <span class="drive-file-date">${new Date(f.modifiedTime).toLocaleDateString('th-TH')}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+
+      // Search functionality
+      const searchInput = modal.querySelector('.drive-search-input');
+      const fileItems = modal.querySelectorAll('.drive-file-item');
+      searchInput?.addEventListener('input', (e) => {
+        const searchTerm = e.target.value.toLowerCase().trim();
+        fileItems.forEach(item => {
+          const fileName = item.getAttribute('data-file-name') || '';
+          if (fileName.includes(searchTerm)) {
+            item.style.display = 'flex';
+          } else {
+            item.style.display = 'none';
+          }
+        });
+      });
+
+      // Close modal
+      const closeModal = () => { modal.remove(); };
+      modal.querySelector('.drive-modal-close')?.addEventListener('click', closeModal);
+      modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+
+      // File selection
+      modal.querySelectorAll('.drive-file-item').forEach(item => {
+        item.addEventListener('click', async () => {
+          const fileId = item.getAttribute('data-file-id');
+          const fileName = item.querySelector('.drive-file-name')?.textContent || 'file';
+          closeModal();
+          snack(`กำลังโหลด ${fileName}...`, 'info');
+
+          try {
+            const fileUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${API_KEY}`;
+            const fileResponse = await fetch(fileUrl);
+            if (!fileResponse.ok) throw new Error(`Download Error: ${fileResponse.status}`);
+
+            const jsonText = await fileResponse.text();
+            const d = JSON.parse(jsonText);
+
+            if(!d || typeof d !== 'object') throw new Error('Invalid JSON');
+
+            const ns = d.state || {};
+            const nm = Array.isArray(d.meds) ? d.meds : [];
+            state = {...state, ...ns};
+            meds = nm;
+            caregivers = Array.isArray(d.caregivers) ? d.caregivers : ((ns.careName || ns.careRelation || ns.careTel) ? [{name: ns.careName || '', relation: ns.careRelation || '', tel: ns.careTel || ''}] : (caregivers || []));
+            renderStateToInputs(); renderMeds(); renderCaregivers(); syncCarePrimaryToState(); bindSpans(); saveAll();
+            snack('Import สำเร็จ', 'ok');
+          } catch(err) {
+            console.error(err);
+            snack('Import ล้มเหลว: ' + err.message, 'danger');
+          }
+        });
+      });
+
+    } catch(err) {
+      console.error('Error listing files:', err);
+      snack('เกิดข้อผิดพลาด: ' + err.message, 'danger');
+    }
+  });
   $("#importFile")?.addEventListener("change", (e)=>{
     const f = e.target.files && e.target.files[0];
     if(!f) return;
@@ -2050,9 +2329,16 @@ function initButtons(){
   });
   $("#openDrive")?.addEventListener("click", ()=>{ window.open(DRIVE_FOLDER_URL, '_blank'); });
   $("#clearAll")?.addEventListener("click", ()=>{
-    if(!confirm("ยืนยันล้างข้อมูลทั้งหมด? (มี Undo)")) return;
-    const backup=localStorage.getItem(STORAGE_KEY); localStorage.setItem(STORAGE_KEY+"_backup", backup||"");
-    localStorage.removeItem(STORAGE_KEY); location.reload();
+    showConfirmModal(
+      "คุณแน่ใจหรือไม่ว่าต้องการล้างข้อมูลทั้งหมด? การกระทำนี้จะลบข้อมูลปัจจุบัน แต่คุณสามารถกู้คืนได้ด้วยปุ่ม Undo",
+      () => {
+        const backup=localStorage.getItem(STORAGE_KEY);
+        localStorage.setItem(STORAGE_KEY+"_backup", backup||"");
+        localStorage.removeItem(STORAGE_KEY);
+        snack('ล้างข้อมูลเรียบร้อย ใช้ปุ่ม Undo เพื่อกู้คืน', 'ok');
+        setTimeout(() => location.reload(), 1000);
+      }
+    );
   });
   const backup=localStorage.getItem(STORAGE_KEY+"_backup");
   if(backup){ const btn=document.createElement("button"); btn.textContent="Undo ล้างข้อมูล"; btn.className="undo";
@@ -2215,25 +2501,157 @@ function initAutoFormat(){
       e.target.value = formatted;
     });
   }
+
+  // Recorder phone formatting
+  const recorderTelInput = document.getElementById('recorderTel');
+  if(recorderTelInput){
+    recorderTelInput.addEventListener('input', function(e){
+      const formatted = formatThaiPhone(e.target.value);
+      e.target.value = formatted;
+    });
+  }
+
+  // Auto-fill recorder phone when name is selected
+  const recorderNameInput = document.getElementById('recorderName');
+  if(recorderNameInput){
+    const fillRecorderData = function(){
+      const name = recorderNameInput.value;
+      // Match with datalist
+      if(name === 'พว.วรินทร์ทิพย์'){
+        if(recorderTelInput){
+          const formattedPhone = formatThaiPhone('0649081365');
+          recorderTelInput.value = formattedPhone;
+          commit('recorderTel', formattedPhone);
+        }
+        const recordDateInput = document.getElementById('recordDate');
+        if(recordDateInput && !recordDateInput.value){
+          recordDateInput.value = todayISO();
+          commit('recordDate', todayISO());
+        }
+      }
+    };
+    recorderNameInput.addEventListener('input', fillRecorderData);
+    recorderNameInput.addEventListener('change', fillRecorderData);
+  }
 }
 
 // ---------- Hydrate / Boot ----------
 function hydrate(){
   if(loadAll()){ renderStateToInputs(); renderMeds(); }
   else{
-    state={ refDate: todayISO(), fromFacility: "คลินิกเบาใจ รพ.กาฬสินธุ์ โทร. 043-811020 ต่อ 1352", pps:"40" };
+    state={
+      refDate: todayISO(),
+      fromFacility: "คลินิกเบาใจ รพ.กาฬสินธุ์ โทร. 043-811020 ต่อ 1352",
+      pps:"40",
+      recorderName: "พว.วรินทร์ทิพย์",
+      recorderTel: "064-9081365",
+      recordDate: todayISO()
+    };
     meds=[];
   }
   readInputsToState();
   renderPrintDoc();
   saveAll();
 }
+
+// ========== STEP NAVIGATION ==========
+function initStepNavigation() {
+  const stepBtns = document.querySelectorAll('.step-btn');
+  const stepContainers = document.querySelectorAll('.step-container');
+  let currentStep = 1;
+
+  // Navigate to specific step
+  function goToStep(stepNum) {
+    // Remove active class from all
+    stepBtns.forEach(btn => btn.classList.remove('active'));
+    stepContainers.forEach(container => container.classList.remove('active'));
+
+    // Add active to current step
+    const targetBtn = document.querySelector(`.step-btn[data-step="${stepNum}"]`);
+    const targetContainer = document.querySelector(`.step-container[data-step="${stepNum}"]`);
+
+    if (targetBtn && targetContainer) {
+      targetBtn.classList.add('active');
+      targetContainer.classList.add('active');
+      currentStep = stepNum;
+
+      // Mark previous steps as completed
+      stepBtns.forEach(btn => {
+        const btnStep = parseInt(btn.getAttribute('data-step'));
+        if (btnStep < currentStep) {
+          btn.classList.add('completed');
+        } else {
+          btn.classList.remove('completed');
+        }
+      });
+
+      // Smooth scroll to top
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+
+      // Save current step to localStorage
+      localStorage.setItem('currentStep', currentStep);
+    }
+  }
+
+  // Add click handlers to step buttons
+  stepBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const stepNum = parseInt(btn.getAttribute('data-step'));
+      goToStep(stepNum);
+      const label = btn.querySelector('.step-label').textContent;
+      snack(`ไปที่: ${label}`, 'info');
+    });
+  });
+
+  // Add "Next" and "Previous" buttons to each step
+  stepContainers.forEach((container) => {
+    const stepNum = parseInt(container.getAttribute('data-step'));
+    const navDiv = document.createElement('div');
+    navDiv.className = 'step-navigation-footer';
+    navDiv.innerHTML = `
+      ${stepNum > 1 ? `<button type="button" class="step-nav-btn prev-btn" data-prev="${stepNum - 1}">← ย้อนกลับ</button>` : '<span></span>'}
+      ${stepNum < stepContainers.length ? `<button type="button" class="step-nav-btn next-btn" data-next="${stepNum + 1}">ถัดไป →</button>` : ''}
+    `;
+    container.appendChild(navDiv);
+  });
+
+  // Handle next/prev buttons
+  document.addEventListener('click', (e) => {
+    if (e.target.classList.contains('next-btn')) {
+      const nextStep = parseInt(e.target.getAttribute('data-next'));
+      goToStep(nextStep);
+    }
+    if (e.target.classList.contains('prev-btn')) {
+      const prevStep = parseInt(e.target.getAttribute('data-prev'));
+      goToStep(prevStep);
+    }
+  });
+
+  // Restore last step from localStorage
+  const savedStep = localStorage.getItem('currentStep');
+  if (savedStep) {
+    goToStep(parseInt(savedStep));
+  }
+
+  // Keyboard navigation (Alt + Arrow keys)
+  document.addEventListener('keydown', (e) => {
+    if (e.altKey && e.key === 'ArrowRight' && currentStep < stepContainers.length) {
+      goToStep(currentStep + 1);
+    }
+    if (e.altKey && e.key === 'ArrowLeft' && currentStep > 1) {
+      goToStep(currentStep - 1);
+    }
+  });
+}
+
 window.addEventListener("DOMContentLoaded", ()=>{
   hydrate(); initInputs(); initCaregiversUI(); initButtons();
   initOrderTypeSwitcher();
   initOrderUI();
   initMixUI();
   initAutoFormat();
+  initZoomControls();
+  initStepNavigation(); // Initialize step navigation
   // Calculator removed
   initFentanylConv();
   safetyChecks();
