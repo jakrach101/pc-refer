@@ -3138,6 +3138,7 @@ html{
   *{ -webkit-print-color-adjust: exact; print-color-adjust: exact }
   html, body{ margin:0; background:#fff !important }
   header{ display:none !important }
+  .progress-nav{ display:none !important }
   .page-estimate-badge{ display:none !important }
   .page-break-line{ display:none !important }
   .preview-header{ display:none !important }
@@ -3156,9 +3157,13 @@ html{
     max-width:var(--pdf-width,190mm) !important;
     margin:0 auto !important;
     background:#fff !important;
-    transform: none !important;
     box-shadow: none !important;
     border: none !important;
+    /* reserve space so fixed footer doesn't overlap content */
+    padding-bottom: 18mm !important;
+  }
+  body.is-safari #printDoc{
+    transform: none !important;
   }
   /* Ensure pseudo-elements don't affect paper output */
   #printDoc::before{ display:none !important }
